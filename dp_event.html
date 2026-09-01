@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🎉 D.P. 야유회</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <style>
+    @keyframes bounceIn   { 0%{transform:scale(.3);opacity:0} 50%{transform:scale(1.1)} 80%{transform:scale(.95)} 100%{transform:scale(1);opacity:1} }
+    @keyframes floatUp    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    @keyframes slideUp    { from{transform:translateY(24px);opacity:0} to{transform:translateY(0);opacity:1} }
+    @keyframes shimmer    { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
+    @keyframes crownBob   { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-6px) rotate(4deg)} }
+    @keyframes goldPulse  { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.6)} 60%{box-shadow:0 0 0 14px rgba(245,158,11,0)} }
+    @keyframes fadeIn     { from{opacity:0} to{opacity:1} }
+    @keyframes spinIn     { from{transform:rotate(-180deg) scale(0);opacity:0} to{transform:rotate(0) scale(1);opacity:1} }
+
+    .ani-bounce  { animation: bounceIn  .7s cubic-bezier(.36,.07,.19,.97) both }
+    .ani-float   { animation: floatUp   3s ease-in-out infinite }
+    .ani-slideup { animation: slideUp   .45s ease both }
+    .ani-fade    { animation: fadeIn    .4s ease both }
+    .ani-crown   { animation: crownBob  1.8s ease-in-out infinite; display:inline-block }
+    .ani-spin    { animation: spinIn    .6s ease both }
+    .ani-pulse   { animation: goldPulse 2s ease-in-out infinite }
+
+    .gold-text {
+      background: linear-gradient(90deg,#f59e0b,#fde68a,#f59e0b,#fde68a);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 2.5s linear infinite;
+    }
+
+    .view { display:none !important }
+    .view.show { display:block !important }
+
+    .tab-btn        { border-bottom: 3px solid transparent; transition: all .2s }
+    .tab-btn.active { border-bottom-color: #3b82f6; color: #3b82f6; font-weight: 700 }
+
+    .stagger > * { opacity:0; animation: slideUp .4s ease forwards }
+    .stagger > *:nth-child(1){ animation-delay:.05s }
+    .stagger > *:nth-child(2){ animation-delay:.12s }
+    .stagger > *:nth-child(3){ animation-delay:.19s }
+    .stagger > *:nth-child(4){ animation-delay:.26s }
+    .stagger > *:nth-child(5){ animation-delay:.33s }
+    .stagger > *:nth-child(6){ animation-delay:.40s }
+    .stagger > *:nth-child(7){ animation-delay:.47s }
+    .stagger > *:nth-child(8){ animation-delay:.54s }
+
+    input, textarea, select { font-size: 16px !important }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none }
+
+    .card { transition: transform .2s ease, box-shadow .2s ease }
+    .card:active { transform: scale(.97) }
+
+    .sc-btn { transition: all .15s; touch-action: manipulation }
+    .sc-btn:active { transform: scale(.88) }
+
+    #modal-wrap { display:none }
+    #modal-wrap.open { display:flex }
+    #modal-box { animation: slideUp .3s ease }
+
+    .clamp2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden }
+  </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen select-none" style="font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif">
+
+<!-- ════════════════ VIEW: SETUP ════════════════ -->
+<div id="v-setup" class="view min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center p-4">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
+    <div class="text-center mb-6">
+      <div class="text-6xl mb-3">🔧</div>
+      <h1 class="text-2xl font-black text-gray-800">Firebase 연결</h1>
+      <p class="text-gray-400 text-sm mt-1">첫 설정이 필요합니다</p>
+    </div>
+
+    <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-5 text-xs text-blue-700">
+      <p class="font-bold mb-2">📋 빠른 설정 방법</p>
+      <ol class="list-decimal list-inside space-y-1 leading-relaxed">
+        <li><a href="https://console.firebase.google.com" target="_blank" class="underline font-semibold">Firebase Console</a> → 새 프로젝트 만들기</li>
+        <li>좌측 메뉴 → Realtime Database → 데이터베이스 만들기 → <b>테스트 모드</b></li>
+        <li>프로젝트 설정(⚙️) → 내 앱 → 웹앱(&lt;/&gt;) → 앱 등록 → config 복사</li>
+        <li>아래에 각 값 붙여넣기 후 연결</li>
+      </ol>
+    </div>
+
+    <div class="space-y-2.5">
+      <input id="s-apiKey"      type="text" placeholder="apiKey"       class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-400">
+      <input id="s-authDomain"  type="text" placeholder="authDomain"   class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-400">
+      <input id="s-databaseURL" type="text" placeholder="databaseURL (https://...firebaseio.com)" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-400">
+      <input id="s-projectId"   type="text" placeholder="projectId"    class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-400">
+      <input id="s-appId"       type="text" placeholder="appId"        class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-400">
+    </div>
+
+    <p id="setup-err" class="text-red-500 text-sm mt-3 hidden"></p>
+
+    <button onclick="doSetup()" class="w-full mt-5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black py-3.5 rounded-2xl transition-all text-lg">
+      🚀 연결하기
+    </button>
+    <p class="text-center text-xs text-gray-300 mt-4">설정은 이 기기 브라우저에 저장됩니다</p>
+  </div>
+</div>
+
+<!-- ════════════════ VIEW: LOADING ════════════════ -->
+<div id="v-loading" class="view min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
+  <div class="text-center text-white">
+    <div class="text-6xl ani-float mb-4">🎉</div>
+    <p class="text-xl font-bold">연결 중...</p>
+  </div>
+</div>
+
+<!-- ════════════════ VIEW: WELCOME ════════════════ -->
+<div id="v-welcome" class="view min-h-screen flex flex-col items-center justify-center p-5"
+     style="background:linear-gradient(145deg,#6366f1 0%,#8b5cf6 40%,#ec4899 100%)">
+
+  <div class="text-center mb-8">
+    <div id="welcome-emoji" class="text-8xl ani-float mb-4">🎉</div>
+    <h1 id="welcome-title" class="text-4xl font-black text-white ani-bounce drop-shadow-lg">D.P. 야유회</h1>
+    <p  id="welcome-msg"   class="text-white/80 text-lg mt-2 ani-slideup font-medium"></p>
+  </div>
+
+  <div class="bg-white/20 backdrop-blur-md rounded-3xl p-6 w-full max-w-sm border border-white/30 shadow-2xl ani-slideup">
+    <p class="text-white font-bold text-center mb-3">✍️ 이름을 입력하세요</p>
+    <input id="inp-name" type="text" placeholder="홍길동" maxlength="8"
+           class="w-full bg-white rounded-2xl px-4 py-3 text-gray-800 font-black text-center text-xl outline-none shadow-inner"
+           oninput="onNameInput()">
+
+    <div id="team-picker" class="hidden mt-4">
+      <p class="text-white/80 text-sm text-center mb-2">🏷️ 팀 선택</p>
+      <div id="team-picker-grid" class="grid grid-cols-2 gap-2"></div>
+    </div>
+
+    <button onclick="joinEvent()"
+            class="w-full mt-5 bg-white text-purple-700 font-black py-3.5 rounded-2xl text-lg active:scale-95 transition-all shadow-lg hover:shadow-xl">
+      참가하기 🙌
+    </button>
+  </div>
+
+  <button onclick="goAdminLogin()" class="mt-6 text-white/30 text-xs hover:text-white/60 transition-colors">관리자 로그인</button>
+</div>
+
+<!-- ════════════════ VIEW: PARTICIPANT ════════════════ -->
+<div id="v-participant" class="view min-h-screen bg-gray-100 pb-8">
+
+  <div id="p-header" class="px-5 pt-10 pb-16 text-white"
+       style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+    <div class="flex justify-between items-start">
+      <div>
+        <p class="text-white/60 text-xs font-semibold uppercase tracking-wide">내 팀</p>
+        <p id="p-team-name" class="text-xl font-black mt-0.5">--</p>
+      </div>
+      <div class="text-right">
+        <p class="text-white/60 text-xs font-semibold uppercase tracking-wide">참가자</p>
+        <p id="p-my-name" class="text-xl font-black mt-0.5">--</p>
+      </div>
+    </div>
+    <p id="p-event-name" class="text-center text-white/50 text-xs mt-3"></p>
+  </div>
+
+  <div class="mx-4 -mt-8 bg-white rounded-3xl shadow-xl overflow-hidden">
+    <div class="flex border-b border-gray-100">
+      <button onclick="pTab('lb')"    class="tab-btn active flex-1 py-3.5 text-sm" id="ptb-lb">🏆 순위</button>
+      <button onclick="pTab('games')" class="tab-btn flex-1 py-3.5 text-sm"        id="ptb-games">🎮 게임</button>
+      <button onclick="pTab('team')"  class="tab-btn flex-1 py-3.5 text-sm"        id="ptb-team">👥 팀</button>
+    </div>
+
+    <div id="ptc-lb"    class="p-4"><div id="lb-list" class="space-y-3 stagger"></div></div>
+    <div id="ptc-games" class="p-4 hidden"><div id="p-games-list" class="space-y-3"></div></div>
+    <div id="ptc-team"  class="p-4 hidden"><div id="p-team-detail"></div></div>
+  </div>
+</div>
+
+<!-- ════════════════ VIEW: ADMIN LOGIN ════════════════ -->
+<div id="v-admin-login" class="view min-h-screen bg-gray-900 flex items-center justify-center p-4">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm">
+    <div class="text-center mb-6">
+      <div class="text-6xl mb-3 ani-spin">🔐</div>
+      <h2 class="text-2xl font-black text-gray-800">관리자</h2>
+    </div>
+    <input id="pin-inp" type="password" placeholder="PIN 입력" maxlength="12"
+           class="w-full border-2 border-gray-200 rounded-2xl px-4 py-4 text-center text-3xl tracking-[0.4em] outline-none focus:border-blue-500 transition-colors"
+           onkeypress="if(event.key==='Enter')checkPin()">
+    <p id="pin-err" class="text-red-500 text-sm text-center mt-2 hidden">❌ PIN이 틀렸습니다</p>
+    <button onclick="checkPin()" class="w-full mt-4 bg-gray-900 text-white font-black py-3.5 rounded-2xl hover:bg-gray-700 active:scale-95 transition-all">입장</button>
+    <button onclick="showView('v-welcome')" class="w-full mt-2 text-gray-300 text-sm py-2">← 돌아가기</button>
+  </div>
+</div>
+
+<!-- ════════════════ VIEW: ADMIN DASHBOARD ════════════════ -->
+<div id="v-admin" class="view min-h-screen bg-gray-100">
+
+  <div class="bg-gray-900 text-white px-4 py-3 sticky top-0 z-20 flex items-center justify-between shadow-lg">
+    <div class="flex items-center gap-2">
+      <span class="text-xl">⚙️</span>
+      <div>
+        <p class="font-black text-sm leading-tight">관리자</p>
+        <p id="a-event-name" class="text-white/40 text-xs leading-tight">D.P. 야유회</p>
+      </div>
+    </div>
+    <button onclick="adminLogout()" class="text-white/40 hover:text-white text-xs transition-colors font-semibold">로그아웃</button>
+  </div>
+
+  <div class="bg-white shadow-sm overflow-x-auto">
+    <div class="flex min-w-max">
+      <button onclick="aTab('teams')"  class="tab-btn active px-5 py-3.5 text-sm whitespace-nowrap" id="atb-teams">👥 팀 관리</button>
+      <button onclick="aTab('scores')" class="tab-btn px-5 py-3.5 text-sm whitespace-nowrap"        id="atb-scores">📊 점수 입력</button>
+      <button onclick="aTab('games')"  class="tab-btn px-5 py-3.5 text-sm whitespace-nowrap"        id="atb-games">🎮 게임 관리</button>
+      <button onclick="aTab('board')"  class="tab-btn px-5 py-3.5 text-sm whitespace-nowrap"        id="atb-board">🏆 순위 현황</button>
+      <button onclick="aTab('cfg')"    class="tab-btn px-5 py-3.5 text-sm whitespace-nowrap"        id="atb-cfg">⚙️ 설정</button>
+    </div>
+  </div>
+
+  <!-- Teams -->
+  <div id="atc-teams" class="p-4">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-black text-gray-800 text-lg">팀 목록</h3>
+      <button onclick="openAddTeamModal()" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-sm active:scale-95 transition-all shadow">+ 팀 추가</button>
+    </div>
+    <div id="a-teams-list" class="space-y-4"></div>
+  </div>
+
+  <!-- Scores -->
+  <div id="atc-scores" class="p-4 hidden">
+    <h3 class="font-black text-gray-800 text-lg mb-3">점수 입력</h3>
+    <div id="score-game-btns" class="flex gap-2 overflow-x-auto pb-2 mb-4"></div>
+    <div id="score-area"></div>
+  </div>
+
+  <!-- Games -->
+  <div id="atc-games" class="p-4 hidden">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-black text-gray-800 text-lg">게임 목록</h3>
+      <button onclick="openAddGameModal()" class="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-sm active:scale-95 transition-all shadow">+ 게임 추가</button>
+    </div>
+    <div id="a-games-list" class="space-y-3"></div>
+  </div>
+
+  <!-- Board -->
+  <div id="atc-board" class="p-4 hidden">
+    <h3 class="font-black text-gray-800 text-lg mb-4">실시간 순위</h3>
+    <div id="a-lb-list" class="space-y-3 stagger"></div>
+    <div class="bg-white rounded-2xl p-4 mt-4 shadow-sm">
+      <h4 class="font-bold text-gray-700 mb-3">📊 게임별 점수표</h4>
+      <div id="a-score-table" class="overflow-x-auto"></div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div id="atc-cfg" class="p-4 hidden space-y-4">
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+      <h3 class="font-bold text-gray-800 mb-4">🎉 이벤트 설정</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase">이벤트 이름</label>
+          <input id="cfg-name"  type="text" placeholder="D.P. 야유회" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 outline-none focus:border-blue-400">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase">환영 메시지</label>
+          <textarea id="cfg-msg" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 h-24 resize-none outline-none focus:border-blue-400" placeholder="환영합니다! 🎉"></textarea>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase">환영 이모지</label>
+          <input id="cfg-emoji" type="text" maxlength="2" placeholder="🎉" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 text-center text-3xl outline-none focus:border-blue-400">
+        </div>
+        <button onclick="saveCfg()" class="w-full bg-blue-600 text-white font-black py-3 rounded-xl active:scale-95 transition-all">저장</button>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+      <h3 class="font-bold text-gray-800 mb-4">📱 참가자 QR 코드</h3>
+      <div class="flex gap-2 mb-2">
+        <input id="cfg-url" type="text" placeholder="https://your-app-url.com/dp_event.html" class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-xs outline-none focus:border-blue-400">
+        <button onclick="makeQR()" class="bg-purple-600 text-white px-4 py-2 rounded-xl font-bold text-sm active:scale-95 transition-all whitespace-nowrap">QR 생성</button>
+      </div>
+      <p class="text-xs text-gray-400 mb-3">배포 후 실제 URL을 입력하면 QR코드가 생성됩니다</p>
+      <div id="qr-box" class="flex justify-center py-2"></div>
+      <button id="qr-dl" onclick="downloadQR()" class="hidden w-full mt-3 bg-gray-100 text-gray-700 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-all">💾 QR 이미지 저장</button>
+    </div>
+
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+      <h3 class="font-bold text-gray-800 mb-4">🔑 관리자 PIN 변경</h3>
+      <div class="flex gap-2">
+        <input id="cfg-pin" type="password" placeholder="새 PIN (4자리 이상)" class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-blue-400">
+        <button onclick="savePin()" class="bg-orange-500 text-white px-4 py-2 rounded-xl font-bold text-sm active:scale-95 transition-all">변경</button>
+      </div>
+    </div>
+
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-5">
+      <h3 class="font-bold text-red-600 mb-3">⚠️ 위험 구역</h3>
+      <div class="space-y-2">
+        <button onclick="resetScores()"  class="w-full bg-white border border-red-300 text-red-500 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-all">🔄 모든 점수 초기화</button>
+        <button onclick="clearConfig()" class="w-full bg-white border border-red-300 text-red-500 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-all">🗑️ Firebase 설정 초기화 (재설정)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ MODAL ════════════════ -->
+<div id="modal-wrap" class="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center" onclick="onModalBgClick(event)">
+  <div id="modal-box" class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[92dvh] overflow-y-auto" onclick="event.stopPropagation()">
+    <div id="modal-body" class="p-6"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"
+     class="fixed top-5 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl text-sm font-bold z-[100] pointer-events-none transition-all duration-300 opacity-0 -translate-y-3">
+</div>
+
+<!-- ════════════════ JAVASCRIPT ════════════════ -->
+<script>
+const TEAM_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
+const TEAM_EMOJIS = ['🦁','🐯','🦊','🐻','🦅','🐺','🦈','🦉','🐉','🦋'];
+const MEDALS      = ['🥇','🥈','🥉'];
+const STORAGE_KEY = 'dp_firebase_cfg_v2';
+
+let db = null;
+let ST = {
+  teams:{}, games:{}, scores:{}, participants:{},
+  cfg:{ eventName:'D.P. 야유회', welcomeMessage:'함께해서 더 즐거운 야유회! 🎉', emoji:'🎉', adminPin:'1234', url:'' },
+  me:{ name:'', teamId:'' },
+  adminAuthed:false, curAdminTab:'teams', curPTab:'lb', curScoreGame:null,
+  selColor:TEAM_COLORS[0], tmpImg:null, selTeamId:'',
+};
+
+// ─── VIEW ───
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('show'));
+  document.getElementById(id).classList.add('show');
+}
+
+// ─── INIT ───
+window.addEventListener('load', async()=>{
+  const HARDCODED={apiKey:'',authDomain:'',databaseURL:'',projectId:'',appId:''};
+  if(HARDCODED.apiKey&&HARDCODED.databaseURL){ await bootFirebase(HARDCODED); return; }
+  const saved=localStorage.getItem(STORAGE_KEY);
+  if(saved){ try{ await bootFirebase(JSON.parse(saved)); return; }catch(e){ localStorage.removeItem(STORAGE_KEY); } }
+  showView('v-setup');
+});
+
+async function doSetup(){
+  const cfg={
+    apiKey:g('s-apiKey').value.trim(), authDomain:g('s-authDomain').value.trim(),
+    databaseURL:g('s-databaseURL').value.trim(), projectId:g('s-projectId').value.trim(),
+    appId:g('s-appId').value.trim(),
+  };
+  if(!cfg.apiKey||!cfg.databaseURL){setErr('setup-err','❌ apiKey와 databaseURL은 필수입니다');return;}
+  try{ await bootFirebase(cfg); localStorage.setItem(STORAGE_KEY,JSON.stringify(cfg)); }
+  catch(e){ setErr('setup-err','❌ 연결 실패: '+e.message); }
+}
+
+async function bootFirebase(cfg){
+  showView('v-loading');
+  if(!firebase.apps.length) firebase.initializeApp(cfg);
+  db=firebase.database();
+  await new Promise((res,rej)=>{
+    const t=setTimeout(()=>rej(new Error('연결 시간 초과')),10000);
+    db.ref('.info/connected').once('value',()=>{clearTimeout(t);res();});
+  });
+  db.ref('cfg').on('value',snap=>{
+    if(snap.val()){ST.cfg={...ST.cfg,...snap.val()};syncCfgUI();}
+    else db.ref('cfg').set(ST.cfg);
+  });
+  db.ref('teams').on('value',       snap=>{ST.teams=snap.val()||{};renderAll();});
+  db.ref('games').on('value',       snap=>{ST.games=snap.val()||{};renderAll();});
+  db.ref('scores').on('value',      snap=>{ST.scores=snap.val()||{};renderAll();});
+  db.ref('participants').on('value',snap=>{ST.participants=snap.val()||{};});
+  const autoUrl=location.href.split('?')[0];
+  if(!ST.cfg.url){ST.cfg.url=autoUrl;db.ref('cfg/url').set(autoUrl);}
+  const params=new URLSearchParams(location.search);
+  if(params.get('mode')==='admin'){showView('v-admin-login');}
+  else{showView('v-welcome');}
+}
+
+function renderAll(){
+  renderLeaderboard(); renderAdminLeaderboard(); renderPGames();
+  renderAdminTeams(); renderAdminGames(); renderScoreInputArea(); renderScoreTable();
+  if(ST.me.teamId) renderMyTeam();
+}
+
+// ─── CFG SYNC ───
+function syncCfgUI(){
+  const s=ST.cfg;
+  setText('welcome-title',s.eventName||'D.P. 야유회');
+  setText('welcome-msg',  s.welcomeMessage||'');
+  setText('welcome-emoji',s.emoji||'🎉');
+  setText('p-event-name', s.eventName||'');
+  setText('a-event-name', s.eventName||'');
+  setVal('cfg-name', s.eventName||'');
+  setVal('cfg-msg',  s.welcomeMessage||'');
+  setVal('cfg-emoji',s.emoji||'🎉');
+  setVal('cfg-url',  s.url||location.href.split('?')[0]);
+}
+async function saveCfg(){
+  await db.ref('cfg').update({
+    eventName:g('cfg-name').value.trim()||'D.P. 야유회',
+    welcomeMessage:g('cfg-msg').value.trim()||'',
+    emoji:g('cfg-emoji').value.trim()||'🎉',
+  });
+  toast('✅ 설정 저장됨!');
+}
+async function savePin(){
+  const p=g('cfg-pin').value.trim();
+  if(!p||p.length<4){toast('PIN은 4자리 이상','err');return;}
+  await db.ref('cfg/adminPin').set(p);
+  g('cfg-pin').value='';
+  toast('🔑 PIN 변경됨!');
+}
+function clearConfig(){
+  if(!confirm('Firebase 설정을 초기화하면 재설정이 필요합니다. 계속하시겠습니까?')) return;
+  localStorage.removeItem(STORAGE_KEY); location.reload();
+}
+
+// ─── WELCOME ───
+function onNameInput(){
+  const name=g('inp-name').value.trim();
+  const hasTeams=Object.keys(ST.teams).length>0;
+  if(name.length>=1&&hasTeams){ buildTeamPicker(); g('team-picker').classList.remove('hidden'); }
+  else{ g('team-picker').classList.add('hidden'); ST.selTeamId=''; }
+}
+function buildTeamPicker(){
+  const grid=g('team-picker-grid');
+  grid.innerHTML='';
+  Object.entries(ST.teams).forEach(([tid,team])=>{
+    const members=team.members?Object.values(team.members):[];
+    const btn=document.createElement('button');
+    btn.className='bg-white/20 hover:bg-white/30 border-2 border-white/20 rounded-2xl p-3 text-white text-left transition-all active:scale-95';
+    btn.dataset.tid=tid;
+    btn.innerHTML=`<div class="text-3xl">${team.emoji||'🏷️'}</div><div class="font-black text-sm mt-1">${esc(team.name)}</div><div class="text-white/50 text-xs">${members.length}명</div>`;
+    btn.onclick=()=>{
+      grid.querySelectorAll('button').forEach(b=>b.classList.remove('ring-2','ring-white'));
+      btn.classList.add('ring-2','ring-white');
+      ST.selTeamId=tid;
+    };
+    grid.appendChild(btn);
+  });
+}
+async function joinEvent(){
+  const name=g('inp-name').value.trim();
+  if(!name){toast('이름을 입력해주세요!','err');return;}
+  const hasTeams=Object.keys(ST.teams).length>0;
+  if(hasTeams&&!ST.selTeamId){toast('팀을 선택해주세요!','err');return;}
+  ST.me.name=name; ST.me.teamId=ST.selTeamId;
+  await db.ref('participants').push({name,teamId:ST.me.teamId,joinedAt:Date.now()});
+  if(ST.me.teamId){
+    const team=ST.teams[ST.me.teamId];
+    const existing=team?.members?Object.values(team.members):[];
+    if(!existing.includes(name)) await db.ref(`teams/${ST.me.teamId}/members`).push(name);
+  }
+  const team=ST.teams[ST.me.teamId];
+  g('p-my-name').textContent=name;
+  g('p-team-name').textContent=team?`${team.emoji||''} ${team.name}`:'소속없음';
+  if(team) g('p-header').style.background=`linear-gradient(135deg,${team.color||'#6366f1'},${shadeColor(team.color||'#6366f1',-30)})`;
+  showView('v-participant'); pTab('lb'); launchConfetti();
+}
+
+// ─── PARTICIPANT TABS ───
+function pTab(tab){
+  ['lb','games','team'].forEach(t=>{
+    g(`ptb-${t}`).classList.toggle('active',t===tab);
+    g(`ptc-${t}`).classList.toggle('hidden',t!==tab);
+  });
+  ST.curPTab=tab;
+  if(tab==='team') renderMyTeam();
+}
+
+// ─── LEADERBOARD ───
+function calcRanking(){
+  return Object.entries(ST.teams).map(([tid,team])=>{
+    let total=0;
+    Object.values(ST.scores).forEach(gs=>{if(gs[tid])total+=Number(gs[tid]);});
+    return{tid,name:team.name,emoji:team.emoji||'🏷️',color:team.color||'#6366f1',
+           members:team.members?Object.values(team.members):[],total};
+  }).sort((a,b)=>b.total-a.total);
+}
+
+function renderLeaderboard(){
+  const el=g('lb-list'); if(!el)return;
+  const ranked=calcRanking();
+  el.className='space-y-3 stagger';
+  el.innerHTML=ranked.map((t,i)=>{
+    const isFirst=i===0&&t.total>0;
+    const medal=MEDALS[i]||`<span class="text-gray-400 font-bold">${i+1}</span>`;
+    const isMe=t.tid===ST.me.teamId;
+    return`<div class="rounded-2xl p-4 flex items-center gap-3 transition-all border-2 ${isFirst?'ani-pulse border-amber-400':isMe?'border-blue-300 bg-blue-50':'border-gray-100 bg-white'}"
+      style="${isFirst?'background:linear-gradient(135deg,#fffbeb,#fef3c7);box-shadow:0 0 0 3px #f59e0b33':''}">
+      <div class="text-3xl ${isFirst&&t.total>0?'ani-crown':''}">${medal}</div>
+      <div class="text-3xl">${t.emoji}</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-black text-gray-800 truncate ${isFirst?'text-amber-800':''}">${esc(t.name)} ${isMe?'<span class="text-blue-400 text-xs">(내 팀)</span>':''}</div>
+        <div class="text-xs text-gray-400">${t.members.length}명</div>
+      </div>
+      <div class="text-right shrink-0">
+        <div class="font-black text-2xl ${isFirst?'gold-text':'text-blue-600'}">${t.total}</div>
+        <div class="text-xs text-gray-400">점</div>
+      </div>
+    </div>`;
+  }).join('')||'<div class="text-center py-10 text-gray-400"><div class="text-4xl mb-2">🏷️</div><p>아직 팀이 없습니다</p></div>';
+}
+
+function renderAdminLeaderboard(){
+  const el=g('a-lb-list'); if(!el)return;
+  const ranked=calcRanking();
+  el.className='space-y-3 stagger';
+  el.innerHTML=ranked.map((t,i)=>{
+    const isFirst=i===0&&t.total>0;
+    const medal=MEDALS[i]||`${i+1}.`;
+    return`<div class="rounded-2xl p-4 flex items-center gap-3 border-2 ${isFirst?'ani-pulse border-amber-400':'border-gray-100 bg-white'}"
+      style="${isFirst?'background:linear-gradient(135deg,#fffbeb,#fef3c7)':''}">
+      <div class="text-3xl ${isFirst&&t.total>0?'ani-crown':''}">${medal}</div>
+      <div class="text-3xl">${t.emoji}</div>
+      <div class="flex-1"><div class="font-black text-gray-800">${esc(t.name)}</div><div class="text-xs text-gray-400">${t.members.length}명</div></div>
+      <div class="font-black text-2xl ${isFirst?'gold-text':'text-blue-600'}">${t.total}<span class="text-sm font-normal text-gray-400">점</span></div>
+    </div>`;
+  }).join('')||'<div class="text-center py-8 text-gray-400">팀이 없습니다</div>';
+}
+
+function renderScoreTable(){
+  const el=g('a-score-table'); if(!el)return;
+  const ranked=calcRanking(); const games=sortedGames();
+  if(ranked.length===0||games.length===0){ el.innerHTML='<p class="text-gray-400 text-sm text-center">팀 또는 게임을 추가하세요</p>'; return; }
+  let html='<table class="w-full text-xs min-w-max"><thead><tr class="border-b-2 border-gray-200"><th class="text-left py-2 pr-3 font-bold text-gray-600">팀</th>';
+  games.forEach(([,gm])=>{html+=`<th class="text-center px-2 py-2 font-bold text-gray-600 max-w-[60px]">${gm.emoji||'🎮'}<br><span class="font-normal">${esc(gm.name)}</span></th>`;});
+  html+='<th class="text-center px-2 py-2 font-bold text-blue-600">합계</th></tr></thead><tbody>';
+  ranked.forEach((t,ri)=>{
+    html+=`<tr class="border-b border-gray-50 ${ri===0?'bg-amber-50':''}"><td class="py-2 pr-3 font-bold text-gray-800 whitespace-nowrap">${t.emoji} ${esc(t.name)}</td>`;
+    games.forEach(([gid])=>{ const sc=(ST.scores[gid]||{})[t.tid]||0; html+=`<td class="text-center px-2 py-2 font-semibold ${sc>0?'text-blue-600':''}">${sc||'-'}</td>`; });
+    html+=`<td class="text-center px-2 py-2 font-black text-blue-600">${t.total}</td></tr>`;
+  });
+  el.innerHTML=html+'</tbody></table>';
+}
+
+// ─── PARTICIPANT GAMES ───
+function renderPGames(){
+  const el=g('p-games-list'); if(!el)return;
+  const games=sortedGames();
+  el.innerHTML=games.map(([gid,gm])=>`
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden card cursor-pointer" onclick="openGameDetail('${gid}')">
+      ${gm.image?`<img src="${gm.image}" class="w-full h-40 object-cover" loading="lazy">`
+                :`<div class="w-full h-20 flex items-center justify-center text-5xl" style="background:linear-gradient(135deg,${gm.color||'#6366f1'}22,${gm.color||'#6366f1'}55)">${gm.emoji||'🎮'}</div>`}
+      <div class="p-4">
+        <div class="flex items-center gap-2 mb-1"><span class="text-xl">${gm.emoji||'🎮'}</span><h3 class="font-black text-gray-800">${esc(gm.name)}</h3></div>
+        <p class="text-gray-500 text-sm clamp2">${esc(gm.description||'게임 설명 없음')}</p>
+        <p class="text-blue-500 text-xs font-bold mt-2">자세히 보기 →</p>
+      </div>
+    </div>`).join('')||'<div class="text-center py-10 text-gray-400"><div class="text-5xl mb-2">🎮</div><p>등록된 게임이 없습니다</p></div>';
+}
+
+function openGameDetail(gid){
+  const gm=ST.games[gid]; if(!gm)return;
+  const gameScores=Object.entries(ST.teams).map(([tid,team])=>({
+    name:team.name,emoji:team.emoji||'🏷️',score:(ST.scores[gid]||{})[tid]||0
+  })).sort((a,b)=>b.score-a.score);
+  const scHtml=gameScores.length?gameScores.map((s,i)=>`
+    <div class="flex items-center gap-2 p-2 rounded-xl ${i===0?'bg-amber-50':'bg-gray-50'}">
+      <span class="text-lg">${MEDALS[i]||(i+1)}</span><span class="text-lg">${s.emoji}</span>
+      <span class="flex-1 font-bold text-sm">${esc(s.name)}</span>
+      <span class="font-black text-blue-600">${s.score}점</span>
+    </div>`).join(''):'<p class="text-gray-400 text-sm text-center py-2">점수 미입력</p>';
+  modal(`
+    <div class="text-center mb-5"><div class="text-6xl mb-2">${gm.emoji||'🎮'}</div><h2 class="text-2xl font-black text-gray-800">${esc(gm.name)}</h2></div>
+    ${gm.image?`<img src="${gm.image}" class="w-full h-48 object-cover rounded-2xl mb-4" loading="lazy">`:''}
+    <div class="bg-gray-50 rounded-2xl p-4 mb-4"><p class="text-gray-700 whitespace-pre-line text-sm leading-relaxed">${esc(gm.description||'설명 없음')}</p></div>
+    <h3 class="font-black text-gray-800 mb-3">📊 점수 현황</h3>
+    <div class="space-y-2">${scHtml}</div>
+    <button onclick="closeModal()" class="w-full mt-5 bg-gray-900 text-white font-black py-3.5 rounded-2xl active:scale-95 transition-all">닫기</button>`);
+}
+
+// ─── MY TEAM ───
+function renderMyTeam(){
+  const el=g('p-team-detail'); if(!el)return;
+  const team=ST.teams[ST.me.teamId];
+  if(!team){el.innerHTML='<div class="text-center py-8 text-gray-400">팀에 소속되어 있지 않습니다</div>';return;}
+  const members=team.members?Object.values(team.members):[];
+  const ranked=calcRanking();
+  const myRank=ranked.findIndex(t=>t.tid===ST.me.teamId)+1;
+  const myScore=ranked.find(t=>t.tid===ST.me.teamId)?.total||0;
+  const games=sortedGames();
+  el.innerHTML=`
+    <div class="text-center mb-5">
+      <div class="text-7xl mb-2">${team.emoji||'🏷️'}</div>
+      <h2 class="text-2xl font-black text-gray-800">${esc(team.name)}</h2>
+      <p class="text-blue-600 font-black text-3xl mt-1">${myScore}점</p>
+      <p class="text-gray-400 text-sm">${myRank?`현재 ${myRank}위`:''}</p>
+    </div>
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-3">
+      <h3 class="font-bold text-gray-800 mb-3">👥 팀원 (${members.length}명)</h3>
+      <div class="grid grid-cols-2 gap-2">
+        ${members.map(m=>`<div class="bg-gray-50 rounded-xl px-3 py-2 flex items-center gap-2 text-sm font-semibold"><span>👤</span><span class="${m===ST.me.name?'text-blue-600':''}">${esc(m)}${m===ST.me.name?' (나)':''}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl p-4 shadow-sm">
+      <h3 class="font-bold text-gray-800 mb-3">📊 게임별 점수</h3>
+      ${games.map(([gid,gm])=>{
+        const sc=(ST.scores[gid]||{})[ST.me.teamId]||0;
+        return`<div class="flex items-center gap-2 py-2 border-b border-gray-50 last:border-0">
+          <span>${gm.emoji||'🎮'}</span><span class="flex-1 text-sm text-gray-700">${esc(gm.name)}</span>
+          <span class="font-black ${sc>0?'text-blue-600':'text-gray-300'}">${sc||'-'}점</span>
+        </div>`;
+      }).join('')||'<p class="text-gray-400 text-sm">게임 없음</p>'}
+    </div>`;
+}
+
+// ─── ADMIN LOGIN ───
+function goAdminLogin(){ g('pin-inp').value=''; g('pin-err').classList.add('hidden'); showView('v-admin-login'); }
+function checkPin(){
+  const input=g('pin-inp').value;
+  if(input===(ST.cfg.adminPin||'1234')){
+    ST.adminAuthed=true; g('pin-err').classList.add('hidden');
+    showView('v-admin'); aTab('teams');
+  }else{ g('pin-err').classList.remove('hidden'); g('pin-inp').value=''; g('pin-inp').focus(); }
+}
+function adminLogout(){ ST.adminAuthed=false; showView('v-welcome'); }
+
+// ─── ADMIN TABS ───
+function aTab(tab){
+  ['teams','scores','games','board','cfg'].forEach(t=>{
+    g(`atb-${t}`).classList.toggle('active',t===tab);
+    g(`atc-${t}`).classList.toggle('hidden',t!==tab);
+  });
+  ST.curAdminTab=tab;
+  if(tab==='scores') renderScoreInputArea();
+  if(tab==='board'){ renderAdminLeaderboard(); renderScoreTable(); }
+}
+
+// ─── ADMIN TEAMS ───
+function renderAdminTeams(){
+  const el=g('a-teams-list'); if(!el)return;
+  const entries=Object.entries(ST.teams);
+  if(entries.length===0){
+    el.innerHTML='<div class="text-center py-12 text-gray-400"><div class="text-5xl mb-3">👥</div><p>팀을 추가해보세요!</p></div>'; return;
+  }
+  el.innerHTML=entries.map(([tid,team])=>{
+    const members=team.members?Object.entries(team.members):[];
+    const myScore=calcRanking().find(t=>t.tid===tid)?.total||0;
+    const c=team.color||'#6366f1';
+    return`
+      <div class="bg-white rounded-2xl shadow-sm overflow-hidden" style="border-left:5px solid ${c}">
+        <div class="p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <span class="text-4xl">${team.emoji||'🏷️'}</span>
+              <div><h3 class="font-black text-gray-800 text-lg">${esc(team.name)}</h3><p class="text-gray-400 text-xs">${members.length}명 · 총 ${myScore}점</p></div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="openEditTeamModal('${tid}')" class="p-2.5 bg-gray-100 rounded-xl hover:bg-gray-200 active:scale-90 transition-all">✏️</button>
+              <button onclick="delTeam('${tid}')" class="p-2.5 bg-red-50 rounded-xl hover:bg-red-100 active:scale-90 transition-all text-red-500">🗑️</button>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-1.5 mb-3 min-h-[28px]">
+            ${members.map(([key,name])=>`
+              <span class="bg-gray-100 text-gray-700 text-xs px-2.5 py-1 rounded-full flex items-center gap-1">
+                ${esc(name)}<button onclick="delMember('${tid}','${key}')" class="text-gray-400 hover:text-red-500 transition-colors ml-0.5 font-bold leading-none">×</button>
+              </span>`).join('')}
+            ${members.length===0?'<span class="text-gray-300 text-xs">팀원이 없습니다</span>':''}
+          </div>
+          <div class="flex gap-2">
+            <input type="text" id="mi-${tid}" placeholder="팀원 이름 추가..." maxlength="8"
+                   class="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 transition-colors"
+                   onkeypress="if(event.key==='Enter')addMember('${tid}')">
+            <button onclick="addMember('${tid}')" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-sm active:scale-95 transition-all">추가</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function colorPicker(current){
+  return TEAM_COLORS.map(c=>`
+    <button onclick="pickColor('${c}',this)" data-color="${c}"
+      class="color-btn w-9 h-9 rounded-full border-3 border-white shadow-md active:scale-90 transition-all ${c===current?'ring-4 ring-offset-2 ring-gray-400':''}"
+      style="background:${c}"></button>`).join('');
+}
+
+function openAddTeamModal(){
+  const idx=Object.keys(ST.teams).length;
+  ST.selColor=TEAM_COLORS[idx%TEAM_COLORS.length];
+  const defEmoji=TEAM_EMOJIS[idx%TEAM_EMOJIS.length];
+  modal(`
+    <h2 class="text-xl font-black text-gray-800 mb-5">➕ 팀 추가</h2>
+    <div class="space-y-4">
+      <div><label class="text-xs font-semibold text-gray-400 uppercase">팀 이름</label>
+        <input id="m-tname" type="text" placeholder="예) 1팀, 독수리팀, 호랑이팀" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 outline-none focus:border-blue-400">
+      </div>
+      <div><label class="text-xs font-semibold text-gray-400 uppercase">이모지</label>
+        <input id="m-temoji" type="text" value="${defEmoji}" maxlength="2" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 text-center text-3xl outline-none focus:border-blue-400">
+        <div class="flex flex-wrap gap-2 mt-2">${TEAM_EMOJIS.map(e=>`<button onclick="setVal('m-temoji','${e}')" class="text-2xl hover:scale-125 transition-transform active:scale-100">${e}</button>`).join('')}</div>
+      </div>
+      <div><label class="text-xs font-semibold text-gray-400 uppercase">팀 색상</label>
+        <div class="flex flex-wrap gap-2 mt-2" id="color-picker">${colorPicker(ST.selColor)}</div>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-2xl active:scale-95">취소</button>
+      <button onclick="addTeam()"    class="flex-1 bg-blue-600 text-white font-black py-3 rounded-2xl active:scale-95 shadow-lg">추가하기</button>
+    </div>`);
+}
+
+function openEditTeamModal(tid){
+  const team=ST.teams[tid]; if(!team)return;
+  ST.selColor=team.color||TEAM_COLORS[0];
+  modal(`
+    <h2 class="text-xl font-black text-gray-800 mb-5">✏️ 팀 편집</h2>
+    <div class="space-y-4">
+      <div><label class="text-xs font-semibold text-gray-400 uppercase">팀 이름</label>
+        <input id="m-tname" type="text" value="${esc(team.name)}" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 outline-none focus:border-blue-400">
+      </div>
+      <div><label class="text-xs font-semibold text-gray-400 uppercase">이모지</label>
+        <input id="m-temoji" type="text" value="${team.emoji||'🏷️'}" maxlength="2" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 text-center text-3xl outline-none focus:border-blue-400">
+        <div class="flex flex-wrap gap-2 mt-2">${TEAM_EMOJIS.map(e=>`<button onclick="setVal('m-temoji','${e}')" class="text-2xl hover:scale-125 transition-transform active:scale-100">${e}</button>`).join('')}</div>
+      </div>
+      <div><label class="text-xs font-semibold text-gray-400 uppercase">팀 색상</label>
+        <div class="flex flex-wrap gap-2 mt-2" id="color-picker">${colorPicker(ST.selColor)}</div>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeModal()"        class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-2xl active:scale-95">취소</button>
+      <button onclick="updateTeam('${tid}')" class="flex-1 bg-blue-600 text-white font-black py-3 rounded-2xl active:scale-95 shadow-lg">저장</button>
+    </div>`);
+}
+
+function pickColor(c,btn){
+  ST.selColor=c;
+  document.querySelectorAll('#color-picker .color-btn').forEach(b=>b.classList.remove('ring-4','ring-offset-2','ring-gray-400'));
+  btn.classList.add('ring-4','ring-offset-2','ring-gray-400');
+}
+
+async function addTeam(){
+  const name=g('m-tname').value.trim(); const emoji=g('m-temoji').value.trim()||'🏷️';
+  if(!name){toast('팀 이름을 입력해주세요','err');return;}
+  await db.ref('teams').push({name,emoji,color:ST.selColor});
+  closeModal(); toast(`${emoji} ${name} 팀 추가됨!`);
+}
+async function updateTeam(tid){
+  const name=g('m-tname').value.trim(); const emoji=g('m-temoji').value.trim()||'🏷️';
+  if(!name){toast('팀 이름을 입력해주세요','err');return;}
+  await db.ref(`teams/${tid}`).update({name,emoji,color:ST.selColor});
+  closeModal(); toast('✅ 팀 수정됨!');
+}
+async function delTeam(tid){
+  if(!confirm('이 팀을 삭제하시겠습니까?'))return;
+  await db.ref(`teams/${tid}`).remove();
+  const upd={};
+  Object.keys(ST.scores).forEach(gid=>{upd[`scores/${gid}/${tid}`]=null;});
+  if(Object.keys(upd).length) await db.ref().update(upd);
+  toast('🗑️ 팀 삭제됨');
+}
+async function addMember(tid){
+  const inp=g(`mi-${tid}`); const name=inp.value.trim(); if(!name)return;
+  await db.ref(`teams/${tid}/members`).push(name); inp.value=''; toast(`👤 ${name} 추가됨!`);
+}
+async function delMember(tid,key){
+  await db.ref(`teams/${tid}/members/${key}`).remove(); toast('팀원 제거됨');
+}
+
+// ─── ADMIN SCORES ───
+function renderScoreInputArea(){
+  const btnEl=g('score-game-btns'); const area=g('score-area'); if(!btnEl||!area)return;
+  const games=sortedGames(); const teams=Object.entries(ST.teams);
+  if(games.length===0){ btnEl.innerHTML=''; area.innerHTML='<div class="text-center py-10 text-gray-400"><div class="text-4xl mb-2">🎮</div><p>먼저 게임을 추가해주세요</p></div>'; return; }
+  if(!ST.curScoreGame||!ST.games[ST.curScoreGame]) ST.curScoreGame=games[0][0];
+  btnEl.innerHTML=games.map(([gid,gm])=>`
+    <button onclick="pickScoreGame('${gid}')"
+      class="px-3.5 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all active:scale-95 ${gid===ST.curScoreGame?'bg-blue-600 text-white shadow':'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'}">
+      ${gm.emoji||'🎮'} ${esc(gm.name)}
+    </button>`).join('');
+  if(teams.length===0){ area.innerHTML='<div class="text-center py-10 text-gray-400"><div class="text-4xl mb-2">👥</div><p>먼저 팀을 추가해주세요</p></div>'; return; }
+  const gm=ST.games[ST.curScoreGame]; const gsc=ST.scores[ST.curScoreGame]||{};
+  area.innerHTML=`
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div class="flex items-center gap-3 p-4 border-b border-gray-100">
+        <span class="text-3xl">${gm?.emoji||'🎮'}</span>
+        <div><h3 class="font-black text-gray-800">${esc(gm?.name||'')}</h3><p class="text-xs text-gray-400">팀별 점수를 입력하세요</p></div>
+      </div>
+      <div class="divide-y divide-gray-50">
+        ${teams.map(([tid,team])=>`
+          <div class="flex items-center gap-3 px-4 py-3">
+            <span class="text-3xl">${team.emoji||'🏷️'}</span>
+            <span class="flex-1 font-bold text-gray-800">${esc(team.name)}</span>
+            <div class="flex items-center gap-1.5">
+              <button onclick="adjScore('${ST.curScoreGame}','${tid}',-10)" class="sc-btn w-9 h-9 bg-red-100 text-red-600 rounded-xl font-black text-xs">-10</button>
+              <button onclick="adjScore('${ST.curScoreGame}','${tid}',-1)"  class="sc-btn w-9 h-9 bg-orange-100 text-orange-500 rounded-xl font-black text-xs">-1</button>
+              <input type="number" min="0" value="${gsc[tid]||0}" id="sc-${ST.curScoreGame}-${tid}"
+                     onchange="setScore('${ST.curScoreGame}','${tid}',this.value)"
+                     class="w-16 text-center border-2 border-gray-200 rounded-xl font-black text-lg outline-none focus:border-blue-400 transition-colors py-1">
+              <button onclick="adjScore('${ST.curScoreGame}','${tid}',1)"  class="sc-btn w-9 h-9 bg-green-100 text-green-600 rounded-xl font-black text-xs">+1</button>
+              <button onclick="adjScore('${ST.curScoreGame}','${tid}',10)" class="sc-btn w-9 h-9 bg-blue-100 text-blue-600 rounded-xl font-black text-xs">+10</button>
+            </div>
+          </div>`).join('')}
+      </div>
+      <div class="p-3 text-center text-xs text-gray-300 border-t border-gray-50">변경 즉시 실시간 반영</div>
+    </div>`;
+}
+function pickScoreGame(gid){ ST.curScoreGame=gid; renderScoreInputArea(); }
+async function setScore(gid,tid,val){ const sc=Math.max(0,parseInt(val)||0); await db.ref(`scores/${gid}/${tid}`).set(sc); }
+async function adjScore(gid,tid,delta){
+  const cur=((ST.scores[gid]||{})[tid])||0; const nv=Math.max(0,cur+delta);
+  const inp=g(`sc-${gid}-${tid}`); if(inp)inp.value=nv;
+  await db.ref(`scores/${gid}/${tid}`).set(nv);
+}
+async function resetScores(){
+  if(!confirm('⚠️ 모든 점수를 0으로 초기화합니다. 되돌릴 수 없습니다.'))return;
+  await db.ref('scores').remove(); toast('점수 초기화됨','info');
+}
+
+// ─── ADMIN GAMES ───
+function renderAdminGames(){
+  const el=g('a-games-list'); if(!el)return;
+  const games=sortedGames();
+  if(games.length===0){ el.innerHTML='<div class="text-center py-12 text-gray-400"><div class="text-5xl mb-3">🎮</div><p>게임을 추가해보세요!</p></div>'; return; }
+  el.innerHTML=games.map(([gid,gm])=>`
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+      ${gm.image?`<img src="${gm.image}" class="w-full h-36 object-cover" loading="lazy">`
+               :`<div class="w-full h-14 flex items-center justify-center text-4xl" style="background:linear-gradient(135deg,#f3f4f6,#e5e7eb)">${gm.emoji||'🎮'}</div>`}
+      <div class="p-4 flex items-start justify-between gap-2">
+        <div class="flex items-start gap-2 flex-1 min-w-0">
+          <span class="text-2xl shrink-0">${gm.emoji||'🎮'}</span>
+          <div class="min-w-0"><h3 class="font-black text-gray-800 truncate">${esc(gm.name)}</h3><p class="text-gray-400 text-xs clamp2 mt-0.5">${esc(gm.description||'설명 없음')}</p></div>
+        </div>
+        <div class="flex gap-1.5 shrink-0">
+          <button onclick="openEditGameModal('${gid}')" class="p-2.5 bg-gray-100 rounded-xl hover:bg-gray-200 active:scale-90 transition-all">✏️</button>
+          <button onclick="delGame('${gid}')"           class="p-2.5 bg-red-50 rounded-xl hover:bg-red-100 active:scale-90 transition-all text-red-500">🗑️</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function gameFormHtml(gm){
+  return`
+    <div class="space-y-4">
+      <div><label class="text-xs font-semibold text-gray-400 uppercase">게임 이름</label>
+        <input id="m-gname" type="text" value="${gm?esc(gm.name):''}" placeholder="예) 계란던지기, 줄다리기" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 outline-none focus:border-blue-400">
+      </div>
+      <div><label class="text-xs font-semibold text-gray-400 uppercase">이모지</label>
+        <input id="m-gemoji" type="text" value="${gm?gm.emoji||'🎮':'🎮'}" maxlength="2" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 text-center text-3xl outline-none focus:border-blue-400">
+      </div>
+      <div><label class="text-xs font-semibold text-gray-400 uppercase">게임 설명</label>
+        <textarea id="m-gdesc" rows="4" placeholder="게임 방법, 규칙, 진행 방식 등을 적어주세요" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 resize-none outline-none focus:border-blue-400">${gm?esc(gm.description||''):''}</textarea>
+      </div>
+      <div><label class="text-xs font-semibold text-gray-400 uppercase">이미지 (선택, 최대 1.5MB)</label>
+        ${gm?.image?`<img src="${gm.image}" class="w-full h-36 object-cover rounded-xl mb-2" id="m-gprev">`:'<img id="m-gprev" class="hidden w-full h-36 object-cover rounded-xl mb-2">'}
+        <input type="file" id="m-gimg" accept="image/*" onchange="previewImg(this,'m-gprev')"
+               class="w-full mt-1 text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-bold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition-all">
+        ${gm?.image?`<button onclick="ST.tmpImg=null;g('m-gprev').src='';g('m-gprev').classList.add('hidden')" class="text-red-400 text-xs mt-1 hover:text-red-600">× 이미지 삭제</button>`:''}
+      </div>
+    </div>`;
+}
+
+function openAddGameModal(){ ST.tmpImg=null; modal(`<h2 class="text-xl font-black text-gray-800 mb-5">➕ 게임 추가</h2>${gameFormHtml(null)}<div class="flex gap-3 mt-6"><button onclick="closeModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-2xl active:scale-95">취소</button><button onclick="addGame()" class="flex-1 bg-green-600 text-white font-black py-3 rounded-2xl active:scale-95 shadow-lg">추가하기</button></div>`); }
+function openEditGameModal(gid){ const gm=ST.games[gid]; if(!gm)return; ST.tmpImg=gm.image||null; modal(`<h2 class="text-xl font-black text-gray-800 mb-5">✏️ 게임 편집</h2>${gameFormHtml(gm)}<div class="flex gap-3 mt-6"><button onclick="closeModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-2xl active:scale-95">취소</button><button onclick="updateGame('${gid}')" class="flex-1 bg-blue-600 text-white font-black py-3 rounded-2xl active:scale-95 shadow-lg">저장</button></div>`); }
+
+function previewImg(inp,previewId){
+  const file=inp.files[0]; if(!file)return;
+  if(file.size>1.5*1024*1024){toast('이미지가 너무 큽니다 (최대 1.5MB)','err');inp.value='';return;}
+  const reader=new FileReader();
+  reader.onload=e=>{ ST.tmpImg=e.target.result; const prev=g(previewId); prev.src=e.target.result; prev.classList.remove('hidden'); };
+  reader.readAsDataURL(file);
+}
+
+async function addGame(){
+  const name=g('m-gname').value.trim(); const emoji=g('m-gemoji').value.trim()||'🎮'; const desc=g('m-gdesc').value.trim();
+  if(!name){toast('게임 이름을 입력해주세요','err');return;}
+  const order=Object.keys(ST.games).length;
+  await db.ref('games').push({name,emoji,description:desc,image:ST.tmpImg||null,order});
+  closeModal(); toast(`🎮 ${name} 추가됨!`); ST.tmpImg=null;
+}
+async function updateGame(gid){
+  const name=g('m-gname').value.trim(); const emoji=g('m-gemoji').value.trim()||'🎮'; const desc=g('m-gdesc').value.trim();
+  if(!name){toast('게임 이름을 입력해주세요','err');return;}
+  await db.ref(`games/${gid}`).update({name,emoji,description:desc,image:ST.tmpImg!==undefined?ST.tmpImg:ST.games[gid]?.image});
+  closeModal(); toast('✅ 게임 수정됨!'); ST.tmpImg=null;
+}
+async function delGame(gid){
+  if(!confirm('이 게임을 삭제하시겠습니까?'))return;
+  await db.ref(`games/${gid}`).remove(); await db.ref(`scores/${gid}`).remove(); toast('🗑️ 게임 삭제됨');
+}
+
+// ─── QR CODE ───
+function makeQR(){
+  const url=g('cfg-url').value.trim(); if(!url){toast('URL을 입력해주세요','err');return;}
+  const box=g('qr-box'); box.innerHTML='';
+  new QRCode(box,{text:url,width:220,height:220,colorDark:'#111827',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+  g('qr-dl').classList.remove('hidden');
+  db.ref('cfg/url').set(url); toast('📱 QR 코드 생성됨!');
+}
+function downloadQR(){
+  const img=g('qr-box').querySelector('img'); if(!img)return;
+  const a=document.createElement('a'); a.href=img.src; a.download='dp-yayu-qr.png'; a.click();
+}
+
+// ─── MODAL ───
+function modal(html){ g('modal-body').innerHTML=html; g('modal-wrap').classList.add('open'); }
+function closeModal(){ g('modal-wrap').classList.remove('open'); }
+function onModalBgClick(e){ if(e.target===g('modal-wrap'))closeModal(); }
+
+// ─── CONFETTI ───
+function launchConfetti(){
+  const end=Date.now()+4000;
+  const frame=()=>{
+    confetti({particleCount:4,angle:60, spread:60,origin:{x:0},  colors:['#ff6b6b','#ffd93d','#6bcb77','#4d96ff']});
+    confetti({particleCount:4,angle:120,spread:60,origin:{x:1},  colors:['#ff6b6b','#ffd93d','#6bcb77','#4d96ff']});
+    confetti({particleCount:2,angle:90, spread:80,origin:{x:.5,y:0},colors:['#c77dff','#ff9f1c']});
+    if(Date.now()<end)requestAnimationFrame(frame);
+  };
+  frame();
+}
+
+// ─── TOAST ───
+let _toastT;
+function toast(msg,type='ok'){
+  const el=g('toast');
+  el.textContent=msg;
+  el.style.background=type==='err'?'#ef4444':type==='info'?'#3b82f6':'#111827';
+  el.style.opacity='1'; el.style.transform='translateX(-50%) translateY(0)';
+  clearTimeout(_toastT);
+  _toastT=setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateX(-50%) translateY(-12px)'; },2800);
+}
+
+// ─── HELPERS ───
+const g      = id=>document.getElementById(id);
+const setText= (id,v)=>{ const e=g(id); if(e)e.textContent=v; };
+const setVal = (id,v)=>{ const e=g(id); if(e)e.value=v; };
+const setErr = (id,m)=>{ const e=g(id); if(e){e.textContent=m;e.classList.remove('hidden');} };
+function esc(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function sortedGames(){ return Object.entries(ST.games).sort((a,b)=>(a[1].order||0)-(b[1].order||0)); }
+function shadeColor(hex,pct){
+  const num=parseInt(hex.replace('#',''),16);
+  const r=Math.min(255,Math.max(0,(num>>16)+pct));
+  const gg=Math.min(255,Math.max(0,((num>>8)&0xff)+pct));
+  const b=Math.min(255,Math.max(0,(num&0xff)+pct));
+  return`#${((r<<16)|(gg<<8)|b).toString(16).padStart(6,'0')}`;
+}
+</script>
+</body>
+</html>
