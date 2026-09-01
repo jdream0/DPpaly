@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>🎉 D.P. 야유회</title>
+  <title>🎉 D.P 야유회 2026</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -163,18 +163,23 @@
       </div>
     </div>
     <p id="p-event-name" class="text-center text-white/50 text-xs mt-3"></p>
+    <div class="text-center mt-1">
+      <button onclick="leaveEvent()" class="text-white/20 text-xs hover:text-white/50 transition-colors">다시 참가하기</button>
+    </div>
   </div>
 
   <div class="mx-4 -mt-8 bg-white rounded-3xl shadow-xl overflow-hidden">
-    <div class="flex border-b border-gray-100">
-      <button onclick="pTab('lb')"    class="tab-btn active flex-1 py-3.5 text-sm" id="ptb-lb">🏆 순위</button>
-      <button onclick="pTab('games')" class="tab-btn flex-1 py-3.5 text-sm"        id="ptb-games">🎮 게임</button>
-      <button onclick="pTab('team')"  class="tab-btn flex-1 py-3.5 text-sm"        id="ptb-team">👥 팀</button>
+    <div class="flex border-b border-gray-100 overflow-x-auto">
+      <button onclick="pTab('lb')"     class="tab-btn active flex-1 py-3.5 text-sm whitespace-nowrap" id="ptb-lb">🏆 순위</button>
+      <button onclick="pTab('games')"  class="tab-btn flex-1 py-3.5 text-sm whitespace-nowrap"        id="ptb-games">🎮 게임</button>
+      <button onclick="pTab('roster')" class="tab-btn flex-1 py-3.5 text-sm whitespace-nowrap"        id="ptb-roster">📋 명단</button>
+      <button onclick="pTab('team')"   class="tab-btn flex-1 py-3.5 text-sm whitespace-nowrap"        id="ptb-team">👥 내 팀</button>
     </div>
 
-    <div id="ptc-lb"    class="p-4"><div id="lb-list" class="space-y-3 stagger"></div></div>
-    <div id="ptc-games" class="p-4 hidden"><div id="p-games-list" class="space-y-3"></div></div>
-    <div id="ptc-team"  class="p-4 hidden"><div id="p-team-detail"></div></div>
+    <div id="ptc-lb"     class="p-4"><div id="lb-list" class="space-y-3 stagger"></div></div>
+    <div id="ptc-games"  class="p-4 hidden"><div id="p-games-list" class="space-y-3"></div></div>
+    <div id="ptc-roster" class="p-4 hidden"><div id="p-roster"></div></div>
+    <div id="ptc-team"   class="p-4 hidden"><div id="p-team-detail"></div></div>
   </div>
 </div>
 
@@ -333,7 +338,7 @@ const STORAGE_KEY = 'dp_firebase_cfg_v2';
 let db = null;
 let ST = {
   teams:{}, games:{}, scores:{}, participants:{},
-  cfg:{ eventName:'D.P. 야유회', welcomeMessage:'함께해서 더 즐거운 야유회! 🎉', emoji:'🎉', adminPin:'1234', url:'' },
+  cfg:{ eventName:'D.P 야유회 2026', welcomeMessage:'함께해서 더 즐거운 야유회! 🎉', emoji:'🎉', adminPin:'1234', url:'' },
   me:{ name:'', teamId:'' },
   adminAuthed:false, curAdminTab:'teams', curPTab:'lb', curScoreGame:null,
   selColor:TEAM_COLORS[0], tmpImg:null, selTeamId:'',
@@ -390,8 +395,21 @@ async function bootFirebase(cfg){
   const autoUrl=location.href.split('?')[0];
   if(!ST.cfg.url){ST.cfg.url=autoUrl;db.ref('cfg/url').set(autoUrl);}
   const params=new URLSearchParams(location.search);
-  if(params.get('mode')==='admin'){showView('v-admin-login');}
-  else{showView('v-welcome');}
+  if(params.get('mode')==='admin'){
+    showView('v-admin-login');
+  } else {
+    // 이미 참가한 기록이 있으면 바로 참가자 화면으로
+    const saved=localStorage.getItem('dp_me');
+    if(saved){
+      try{
+        const {name,teamId}=JSON.parse(saved);
+        ST.me.name=name; ST.me.teamId=teamId;
+        enterParticipantView(false);
+      }catch(e){ localStorage.removeItem('dp_me'); showView('v-welcome'); }
+    } else {
+      showView('v-welcome');
+    }
+  }
 }
 
 function renderAll(){
@@ -403,7 +421,7 @@ function renderAll(){
 // ─── CFG SYNC ───
 function syncCfgUI(){
   const s=ST.cfg;
-  setText('welcome-title',s.eventName||'D.P. 야유회');
+  setText('welcome-title',s.eventName||'D.P 야유회 2026');
   setText('welcome-msg',  s.welcomeMessage||'');
   setText('welcome-emoji',s.emoji||'🎉');
   setText('p-event-name', s.eventName||'');
@@ -415,7 +433,7 @@ function syncCfgUI(){
 }
 async function saveCfg(){
   await db.ref('cfg').update({
-    eventName:g('cfg-name').value.trim()||'D.P. 야유회',
+    eventName:g('cfg-name').value.trim()||'D.P 야유회 2026',
     welcomeMessage:g('cfg-msg').value.trim()||'',
     emoji:g('cfg-emoji').value.trim()||'🎉',
   });
@@ -469,21 +487,74 @@ async function joinEvent(){
     const existing=team?.members?Object.values(team.members):[];
     if(!existing.includes(name)) await db.ref(`teams/${ST.me.teamId}/members`).push(name);
   }
+  // 참가 정보 저장 (다음 방문 시 자동 복원)
+  localStorage.setItem('dp_me', JSON.stringify({name:ST.me.name, teamId:ST.me.teamId}));
+  enterParticipantView(true);
+}
+
+function enterParticipantView(isNew=false){
   const team=ST.teams[ST.me.teamId];
-  g('p-my-name').textContent=name;
+  g('p-my-name').textContent=ST.me.name;
   g('p-team-name').textContent=team?`${team.emoji||''} ${team.name}`:'소속없음';
   if(team) g('p-header').style.background=`linear-gradient(135deg,${team.color||'#6366f1'},${shadeColor(team.color||'#6366f1',-30)})`;
-  showView('v-participant'); pTab('lb'); launchConfetti();
+  showView('v-participant'); pTab('lb');
+  if(isNew) launchConfetti();
+}
+
+function leaveEvent(){
+  if(!confirm('참가 정보를 초기화하고 처음 화면으로 돌아갑니다.\n계속하시겠습니까?'))return;
+  localStorage.removeItem('dp_me');
+  ST.me={name:'',teamId:''}; ST.selTeamId='';
+  g('inp-name').value='';
+  g('team-picker').classList.add('hidden');
+  showView('v-welcome');
 }
 
 // ─── PARTICIPANT TABS ───
 function pTab(tab){
-  ['lb','games','team'].forEach(t=>{
+  ['lb','games','roster','team'].forEach(t=>{
     g(`ptb-${t}`).classList.toggle('active',t===tab);
     g(`ptc-${t}`).classList.toggle('hidden',t!==tab);
   });
   ST.curPTab=tab;
-  if(tab==='team') renderMyTeam();
+  if(tab==='team')   renderMyTeam();
+  if(tab==='roster') renderRoster();
+}
+
+// ─── ROSTER (전체 명단) ───
+function renderRoster(){
+  const el=g('p-roster'); if(!el)return;
+  const teams=Object.entries(ST.teams);
+  if(teams.length===0){
+    el.innerHTML='<div class="text-center py-10 text-gray-400"><div class="text-4xl mb-2">👥</div><p>팀이 없습니다</p></div>';
+    return;
+  }
+  el.innerHTML=teams.map(([tid,team])=>{
+    const members=team.members?Object.values(team.members):[];
+    const isMyTeam=tid===ST.me.teamId;
+    return`
+      <div class="rounded-2xl mb-3 overflow-hidden border-2 ${isMyTeam?'border-blue-400':'border-gray-100'}"
+           style="border-left:5px solid ${team.color||'#6366f1'}">
+        <div class="flex items-center gap-3 px-4 py-3 ${isMyTeam?'bg-blue-50':'bg-gray-50'}">
+          <span class="text-3xl">${team.emoji||'🏷️'}</span>
+          <div class="flex-1">
+            <h3 class="font-black text-gray-800">${esc(team.name)} ${isMyTeam?'<span class="text-xs text-blue-500 font-bold">(내 팀)</span>':''}</h3>
+            <p class="text-xs text-gray-400">${members.length}명</p>
+          </div>
+        </div>
+        <div class="bg-white px-4 py-3">
+          ${members.length>0
+            ? `<div class="grid grid-cols-2 gap-2">
+                ${members.map(m=>`
+                  <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                    <span class="text-base">${m===ST.me.name?'🙋':'👤'}</span>
+                    <span class="text-sm font-semibold ${m===ST.me.name?'text-blue-600':''} truncate">${esc(m)}</span>
+                  </div>`).join('')}
+              </div>`
+            : '<p class="text-gray-300 text-sm text-center py-1">팀원 없음</p>'}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // ─── LEADERBOARD ───
