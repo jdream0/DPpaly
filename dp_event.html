@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>🎉 D.P 야유회 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -118,33 +120,80 @@
 </div>
 
 <!-- ════════════════ VIEW: WELCOME ════════════════ -->
-<div id="v-welcome" class="view min-h-screen flex flex-col items-center justify-center p-5"
-     style="background:linear-gradient(145deg,#6366f1 0%,#8b5cf6 40%,#ec4899 100%)">
+<div id="v-welcome" class="view min-h-screen relative overflow-hidden"
+     style="background:linear-gradient(145deg,#ff6b35 0%,#f7931e 50%,#ffbb00 100%);font-family:'Do Hyeon',sans-serif">
 
-  <div class="text-center mb-8">
-    <div id="welcome-emoji" class="text-8xl ani-float mb-4">🎉</div>
-    <h1 id="welcome-title" class="text-4xl font-black text-white ani-bounce drop-shadow-lg">D.P. 야유회</h1>
-    <p  id="welcome-msg"   class="text-white/80 text-lg mt-2 ani-slideup font-medium"></p>
+  <!-- 물결 무늬 배경 -->
+  <div style="position:absolute;inset:0;opacity:.12;background-image:radial-gradient(circle,#fff 1.5px,transparent 1.5px);background-size:28px 28px;pointer-events:none"></div>
+
+  <!-- 상단 로고 -->
+  <div class="absolute top-0 left-0 right-0 flex flex-col items-center pt-10 pointer-events-none">
+    <div id="welcome-emoji" class="text-5xl mb-1 ani-float">🎖️</div>
+    <h1 id="welcome-title"
+        style="color:white;font-family:'Do Hyeon',sans-serif;font-size:1.1rem;letter-spacing:.2em;text-shadow:0 2px 8px rgba(0,0,0,.2)">
+      D.P 야유회 2026
+    </h1>
   </div>
 
-  <div class="bg-white/20 backdrop-blur-md rounded-3xl p-6 w-full max-w-sm border border-white/30 shadow-2xl ani-slideup">
-    <p class="text-white font-bold text-center mb-3">✍️ 이름을 입력하세요</p>
-    <input id="inp-name" type="text" placeholder="홍길동" maxlength="8"
-           class="w-full bg-white rounded-2xl px-4 py-3 text-gray-800 font-black text-center text-xl outline-none shadow-inner"
-           oninput="onNameInput()">
+  <!-- 가운데 메시지 (하나씩 나왔다 사라짐) -->
+  <div id="msg-display"
+       class="absolute inset-0 flex items-center justify-center px-8 pointer-events-none">
+    <p id="msg-text"
+       class="text-center leading-snug drop-shadow-lg"
+       style="font-family:'Do Hyeon',sans-serif;color:white;font-size:clamp(2rem,9vw,3.4rem);opacity:0;transition:opacity .5s ease,transform .5s ease;transform:translateY(16px);text-shadow:0 3px 12px rgba(0,0,0,.25)">
+    </p>
+  </div>
 
-    <div id="team-picker" class="hidden mt-4">
-      <p class="text-white/80 text-sm text-center mb-2">🏷️ 팀 선택</p>
-      <div id="team-picker-grid" class="grid grid-cols-2 gap-2"></div>
+  <!-- 이름 입력 박스 -->
+  <div id="name-box" class="hidden absolute inset-0 flex flex-col items-center justify-center px-6">
+    <div class="w-full max-w-sm">
+      <p class="text-center mb-5 drop-shadow"
+         style="font-family:'Do Hyeon',sans-serif;color:white;font-size:1.5rem;text-shadow:0 2px 8px rgba(0,0,0,.25)">
+        ✍️ 신속하게 이름을 적어라!
+      </p>
+      <input id="inp-name" type="text" placeholder="여기에 이름 입력!" maxlength="8"
+             class="w-full rounded-2xl px-4 py-4 text-center text-2xl outline-none shadow-lg"
+             style="font-family:'Do Hyeon',sans-serif;color:#ea580c;border:3px solid rgba(255,255,255,.6);caret-color:#ea580c;background:rgba(255,255,255,.92)"
+             onkeypress="if(event.key==='Enter')joinEvent()">
+      <p id="name-err" class="text-center mt-3 hidden"
+         style="font-family:'Do Hyeon',sans-serif;color:white;font-size:.95rem;text-shadow:0 1px 4px rgba(0,0,0,.3)">
+        😱 명단에 없는 이름이다! 관리자한테 가라!
+      </p>
+      <button onclick="joinEvent()"
+              class="w-full mt-4 py-4 rounded-2xl active:scale-95 transition-all"
+              style="font-family:'Do Hyeon',sans-serif;background:white;color:#ea580c;font-size:1.3rem;box-shadow:0 6px 24px rgba(0,0,0,.2)">
+        신고합니다! 🫡
+      </button>
     </div>
-
-    <button onclick="joinEvent()"
-            class="w-full mt-5 bg-white text-purple-700 font-black py-3.5 rounded-2xl text-lg active:scale-95 transition-all shadow-lg hover:shadow-xl">
-      참가하기 🙌
-    </button>
   </div>
 
-  <button onclick="goAdminLogin()" class="mt-6 text-white/30 text-xs hover:text-white/60 transition-colors">관리자 로그인</button>
+  <!-- 팀 배정 결과 -->
+  <div id="team-reveal" class="hidden absolute inset-0 flex flex-col items-center justify-center px-6">
+    <div class="w-full max-w-sm text-center">
+      <div id="reveal-emoji" class="text-9xl mb-3 ani-bounce">🏷️</div>
+      <p style="font-family:'Do Hyeon',sans-serif;color:rgba(255,255,255,.8);font-size:1rem;letter-spacing:.15em">배속 부대 발표!</p>
+      <h2 id="reveal-team"
+          class="my-2 drop-shadow-lg"
+          style="font-family:'Do Hyeon',sans-serif;color:white;font-size:clamp(2.4rem,11vw,4rem);text-shadow:0 4px 16px rgba(0,0,0,.3)"></h2>
+      <p class="mb-5" style="font-family:'Do Hyeon',sans-serif;color:rgba(255,255,255,.9);font-size:1.4rem">입니다! 🫡</p>
+      <div class="rounded-3xl p-5 mb-5 shadow-inner"
+           style="background:rgba(255,255,255,.25);backdrop-filter:blur(8px);border:2px solid rgba(255,255,255,.4)">
+        <p style="font-family:'Do Hyeon',sans-serif;color:white;font-size:1.3rem;line-height:1.8;text-shadow:0 2px 8px rgba(0,0,0,.2)">
+          🎉 이상!<br>무사히 놀고<br>복귀하기 바란다! 🙌
+        </p>
+      </div>
+      <button onclick="enterParticipantView(true)"
+              class="w-full py-4 rounded-2xl text-xl active:scale-95 transition-all shadow-2xl"
+              style="font-family:'Do Hyeon',sans-serif;background:white;color:#ea580c;font-size:1.3rem;box-shadow:0 8px 24px rgba(0,0,0,.2)">
+        입장! 🎖️
+      </button>
+    </div>
+  </div>
+
+  <!-- 관리자 버튼 -->
+  <button onclick="goAdminLogin()"
+          class="absolute bottom-5 left-1/2 -translate-x-1/2"
+          style="color:rgba(255,255,255,.2);font-size:.75rem;font-family:'Do Hyeon',sans-serif">관리자</button>
 </div>
 
 <!-- ════════════════ VIEW: PARTICIPANT ════════════════ -->
@@ -348,6 +397,7 @@ let ST = {
 function showView(id) {
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('show'));
   document.getElementById(id).classList.add('show');
+  if(id === 'v-welcome') startWelcomeAnimation();
 }
 
 // ─── INIT ───
@@ -415,7 +465,20 @@ async function bootFirebase(cfg){
 function renderAll(){
   renderLeaderboard(); renderAdminLeaderboard(); renderPGames();
   renderAdminTeams(); renderAdminGames(); renderScoreInputArea(); renderScoreTable();
-  if(ST.me.teamId) renderMyTeam();
+  if(ST.me.name){
+    if(!ST.me.teamId){
+      const found = findTeamByName(ST.me.name);
+      if(found) ST.me.teamId = found.tid;
+    }
+    const team = ST.teams[ST.me.teamId];
+    setText('p-my-name', ST.me.name);
+    setText('p-team-name', team ? `${team.emoji||''} ${team.name}` : '소속없음');
+    if(team){
+      const header = g('p-header');
+      if(header) header.style.background = `linear-gradient(135deg,${team.color||'#6366f1'},${shadeColor(team.color||'#6366f1',-30)})`;
+    }
+    if(ST.me.teamId) renderMyTeam();
+  }
 }
 
 // ─── CFG SYNC ───
@@ -451,62 +514,214 @@ function clearConfig(){
   localStorage.removeItem(STORAGE_KEY); location.reload();
 }
 
-// ─── WELCOME ───
-function onNameInput(){
-  const name=g('inp-name').value.trim();
-  const hasTeams=Object.keys(ST.teams).length>0;
-  if(name.length>=1&&hasTeams){ buildTeamPicker(); g('team-picker').classList.remove('hidden'); }
-  else{ g('team-picker').classList.add('hidden'); ST.selTeamId=''; }
-}
-function buildTeamPicker(){
-  const grid=g('team-picker-grid');
-  grid.innerHTML='';
-  Object.entries(ST.teams).forEach(([tid,team])=>{
-    const members=team.members?Object.values(team.members):[];
-    const btn=document.createElement('button');
-    btn.className='bg-white/20 hover:bg-white/30 border-2 border-white/20 rounded-2xl p-3 text-white text-left transition-all active:scale-95';
-    btn.dataset.tid=tid;
-    btn.innerHTML=`<div class="text-3xl">${team.emoji||'🏷️'}</div><div class="font-black text-sm mt-1">${esc(team.name)}</div><div class="text-white/50 text-xs">${members.length}명</div>`;
-    btn.onclick=()=>{
-      grid.querySelectorAll('button').forEach(b=>b.classList.remove('ring-2','ring-white'));
-      btn.classList.add('ring-2','ring-white');
-      ST.selTeamId=tid;
-    };
-    grid.appendChild(btn);
+// ─── 한 글자씩 디졸브 ───
+const MILITARY_MSGS = [
+  '🎖️ D.P 야유회 훈련\n입소를 환영한다!',
+  '🚫 개인행동\n절대 금지!',
+  '😤 오늘 야유회에서\n열외는 없다!',
+  '🏃 열외자, 이탈자는\n끝까지 쫓아간다!',
+  '📱 어플 내 작전표를\n철저히 숙지하도록!',
+  '👀 자, 뭐해?\n안 들어오고!',
+  '✍️ 신속하게\n이름을 적는다!',
+];
+
+function dissolveText(el, text) {
+  el.innerHTML = '';
+  const lines = text.split('\n');
+  let delay = 0;
+  const CHAR_MS = 35; // ← 빠르게 (기존 60)
+
+  lines.forEach((line, li) => {
+    if (li > 0) el.appendChild(document.createElement('br'));
+    [...line].forEach(ch => {
+      const sp = document.createElement('span');
+      sp.textContent = ch;
+      sp.style.cssText = `opacity:0;display:inline-block;transition:opacity .18s ease ${delay}ms, transform .2s ease ${delay}ms;transform:translateY(8px) scale(1.1)`;
+      el.appendChild(sp);
+      delay += CHAR_MS;
+    });
   });
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.querySelectorAll('span').forEach(sp => {
+      sp.style.opacity = '1';
+      sp.style.transform = 'translateY(0) scale(1)';
+    });
+  }));
+
+  return delay + 200;
 }
-async function joinEvent(){
-  const name=g('inp-name').value.trim();
-  if(!name){toast('이름을 입력해주세요!','err');return;}
-  const hasTeams=Object.keys(ST.teams).length>0;
-  if(hasTeams&&!ST.selTeamId){toast('팀을 선택해주세요!','err');return;}
-  ST.me.name=name; ST.me.teamId=ST.selTeamId;
-  await db.ref('participants').push({name,teamId:ST.me.teamId,joinedAt:Date.now()});
-  if(ST.me.teamId){
-    const team=ST.teams[ST.me.teamId];
-    const existing=team?.members?Object.values(team.members):[];
-    if(!existing.includes(name)) await db.ref(`teams/${ST.me.teamId}/members`).push(name);
+
+// ─── WELCOME 애니메이션 ───
+let _msgTimers = [];
+
+function startWelcomeAnimation() {
+  _msgTimers.forEach(clearTimeout);
+  _msgTimers = [];
+
+  const el   = g('msg-text');
+  const disp = g('msg-display');
+  if (!el || !disp) return;
+
+  el.innerHTML = '';
+  el.style.opacity    = '1';
+  el.style.transform  = 'none';
+  el.style.transition = 'none';
+  disp.style.display  = 'flex';
+  g('name-box').classList.add('hidden');
+  g('team-reveal').classList.add('hidden');
+  g('inp-name').value = '';
+  g('name-err').classList.add('hidden');
+
+  const HOLD     = 1100; // ← 빠르게 (기존 1600)
+  const FADE_OUT = 300;  // ← 빠르게 (기존 450)
+  const GAP      = 80;
+
+  let cursor = 200;
+
+  MILITARY_MSGS.forEach((text) => {
+    const textLen    = text.replace(/\n/g, '').length;
+    const dissolveMs = textLen * 35 + 200; // ← 빠르게
+
+    const t1 = setTimeout(() => {
+      el.style.transition = 'none';
+      el.style.opacity    = '1';
+      dissolveText(el, text);
+    }, cursor);
+    _msgTimers.push(t1);
+
+    const fadeStart = cursor + dissolveMs + HOLD;
+    const t2 = setTimeout(() => {
+      el.style.transition = `opacity ${FADE_OUT}ms ease`;
+      el.style.opacity    = '0';
+    }, fadeStart);
+    _msgTimers.push(t2);
+
+    cursor += dissolveMs + HOLD + FADE_OUT + GAP;
+  });
+
+  const t3 = setTimeout(() => {
+    disp.style.display = 'none';
+    el.style.opacity   = '1';
+    const nb = g('name-box');
+    nb.classList.remove('hidden');
+    nb.style.cssText += ';opacity:0;transform:translateY(24px);transition:opacity .5s ease,transform .5s ease';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      nb.style.opacity   = '1';
+      nb.style.transform = 'translateY(0)';
+    }));
+    setTimeout(() => g('inp-name').focus(), 600);
+  }, cursor);
+  _msgTimers.push(t3);
+}
+
+// 이름으로 팀 자동 찾기
+function findTeamByName(name){
+  if(!name) return null;
+  const cleanName = name.replace(/\s+/g, '').toLowerCase();
+  for(const [tid, team] of Object.entries(ST.teams)){
+    if(!team || !team.members) continue;
+    const members = Object.values(team.members);
+    if(members.some(m => String(m).replace(/\s+/g, '').toLowerCase() === cleanName)){
+      return { tid, team };
+    }
   }
-  // 참가 정보 저장 (다음 방문 시 자동 복원)
-  localStorage.setItem('dp_me', JSON.stringify({name:ST.me.name, teamId:ST.me.teamId}));
-  enterParticipantView(true);
+  return null;
+}
+
+async function joinEvent(){
+  const name = g('inp-name').value.trim();
+  if(!name){ g('name-err').classList.remove('hidden'); return; }
+  g('name-err').classList.add('hidden');
+
+  // 🔐 관리자 숨김 진입: "관리자" + PIN 입력 시 바로 관리자 화면으로
+  const ADMIN_KEYWORD = '관리자';
+  if(name.startsWith(ADMIN_KEYWORD)){
+    const enteredPin = name.slice(ADMIN_KEYWORD.length);
+    if(enteredPin === (ST.cfg.adminPin || '1234')){
+      ST.adminAuthed = true;
+      showView('v-admin');
+      aTab('teams');
+      return;
+    }
+  }
+
+  const found    = findTeamByName(name);
+  const hasTeams = Object.keys(ST.teams).length > 0;
+
+  if(hasTeams && !found){
+    g('name-err').classList.remove('hidden');
+    g('inp-name').style.borderColor = '#ef4444';
+    setTimeout(() => { g('inp-name').style.borderColor = 'rgba(255,255,255,.6)'; }, 2000);
+    return;
+  }
+
+  ST.me.name   = name;
+  ST.me.teamId = found ? found.tid : '';
+
+  await db.ref('participants').push({ name, teamId: ST.me.teamId, joinedAt: Date.now() });
+  localStorage.setItem('dp_me', JSON.stringify({ name: ST.me.name, teamId: ST.me.teamId }));
+
+  showTeamReveal(found);
+}
+
+function showTeamReveal(found){
+  g('name-box').classList.add('hidden');
+  g('msg-display').style.display = 'none';
+
+  const team   = found?.team;
+  const reveal = g('team-reveal');
+
+  g('reveal-emoji').textContent = team?.emoji || '🎖️';
+  g('reveal-team').textContent  = team ? team.name : '독립팀';
+
+  reveal.classList.remove('hidden');
+  reveal.style.opacity    = '0';
+  reveal.style.transform  = 'scale(0.85)';
+  reveal.style.transition = 'opacity .5s ease, transform .5s cubic-bezier(0.36,.07,.19,.97)';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    reveal.style.opacity   = '1';
+    reveal.style.transform = 'scale(1)';
+  }));
+
+  // 노란 배경을 팀 색상으로 부드럽게 물들이기
+  const vw = document.getElementById('v-welcome');
+  if(team?.color){
+    vw.style.transition = 'background 1s ease';
+    vw.style.background = `linear-gradient(160deg,#fffde7 0%,${team.color}55 60%,${team.color}33 100%)`;
+  }
+  launchConfetti();
 }
 
 function enterParticipantView(isNew=false){
-  const team=ST.teams[ST.me.teamId];
-  g('p-my-name').textContent=ST.me.name;
-  g('p-team-name').textContent=team?`${team.emoji||''} ${team.name}`:'소속없음';
-  if(team) g('p-header').style.background=`linear-gradient(135deg,${team.color||'#6366f1'},${shadeColor(team.color||'#6366f1',-30)})`;
-  showView('v-participant'); pTab('lb');
+  // 만약 teamId가 없거나 비어있으면 이름으로 다시 한 번 찾기
+  if(!ST.me.teamId && ST.me.name){
+    const found = findTeamByName(ST.me.name);
+    if(found){
+      ST.me.teamId = found.tid;
+      localStorage.setItem('dp_me', JSON.stringify({ name: ST.me.name, teamId: ST.me.teamId }));
+    }
+  }
+
+  const team = ST.teams[ST.me.teamId];
+  g('p-my-name').textContent = ST.me.name || '--';
+  g('p-team-name').textContent = team ? `${team.emoji||''} ${team.name}` : '소속없음';
+  if(team){
+    g('p-header').style.background = `linear-gradient(135deg,${team.color||'#6366f1'},${shadeColor(team.color||'#6366f1',-30)})`;
+  }
+  showView('v-participant');
+  pTab('lb');
   if(isNew) launchConfetti();
 }
 
 function leaveEvent(){
   if(!confirm('참가 정보를 초기화하고 처음 화면으로 돌아갑니다.\n계속하시겠습니까?'))return;
   localStorage.removeItem('dp_me');
-  ST.me={name:'',teamId:''}; ST.selTeamId='';
-  g('inp-name').value='';
-  g('team-picker').classList.add('hidden');
+  ST.me = { name:'', teamId:'' };
+  const vw = document.getElementById('v-welcome');
+  vw.style.transition = '';
+  vw.style.background = 'linear-gradient(160deg,#fffde7 0%,#fef9c3 40%,#fef08a 100%)';
+  g('msg-display').style.display = 'flex';
   showView('v-welcome');
 }
 
