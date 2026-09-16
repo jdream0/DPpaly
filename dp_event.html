@@ -811,32 +811,52 @@ function renderRoster(){
 
 // ─── LEADERBOARD ───
 function calcRanking(){
-  return Object.entries(ST.teams).map(([tid,team])=>{
+  const list = Object.entries(ST.teams).map(([tid,team])=>{
     let total=0;
-    Object.values(ST.scores).forEach(gs=>{if(gs[tid])total+=Number(gs[tid]);});
+    Object.values(ST.scores).forEach(gs=>{if(gs[tid]!==undefined)total+=Number(gs[tid]);});
     return{tid,name:team.name,emoji:team.emoji||'🏷️',color:team.color||'#6366f1',
            members:team.members?Object.values(team.members):[],total};
   }).sort((a,b)=>b.total-a.total);
+
+  // 동점자 공동 순위 계산
+  let currentRank = 1;
+  return list.map((item, idx, arr)=>{
+    if(idx > 0 && item.total === arr[idx - 1].total){
+      item.rank = arr[idx - 1].rank;
+      item.isTied = true;
+      arr[idx - 1].isTied = true;
+    } else {
+      item.rank = idx + 1;
+      item.isTied = false;
+    }
+    return item;
+  });
 }
 
 function renderLeaderboard(){
   const el=g('lb-list'); if(!el)return;
   const ranked=calcRanking();
   el.className='space-y-3 stagger';
-  el.innerHTML=ranked.map((t,i)=>{
-    const isFirst=i===0&&t.total>0;
-    const medal=MEDALS[i]||`<span class="text-gray-400 font-bold">${i+1}</span>`;
+  el.innerHTML=ranked.map((t)=>{
+    const isFirst=t.rank===1&&t.total>0;
+    const rankIndex=t.rank-1;
+    const medalText=MEDALS[rankIndex]||`<span class="text-gray-400 font-bold">${t.rank}</span>`;
     const isMe=t.tid===ST.me.teamId;
     return`<div class="rounded-2xl p-4 flex items-center gap-3 transition-all border-2 ${isFirst?'ani-pulse border-amber-400':isMe?'border-blue-300 bg-blue-50':'border-gray-100 bg-white'}"
       style="${isFirst?'background:linear-gradient(135deg,#fffbeb,#fef3c7);box-shadow:0 0 0 3px #f59e0b33':''}">
-      <div class="text-3xl ${isFirst&&t.total>0?'ani-crown':''}">${medal}</div>
+      <div class="text-3xl flex items-center justify-center shrink-0 ${isFirst&&t.total>0?'ani-crown':''}">
+        ${medalText}
+      </div>
       <div class="text-3xl">${t.emoji}</div>
       <div class="flex-1 min-w-0">
-        <div class="font-black text-gray-800 truncate ${isFirst?'text-amber-800':''}">${esc(t.name)} ${isMe?'<span class="text-blue-400 text-xs">(내 팀)</span>':''}</div>
+        <div class="font-black text-gray-800 truncate ${isFirst?'text-amber-800':''}">
+          ${esc(t.name)} ${isMe?'<span class="text-blue-400 text-xs">(내 팀)</span>':''}
+          ${t.isTied?`<span class="ml-1 text-[11px] font-bold px-1.5 py-0.5 rounded-md ${isFirst?'bg-amber-200 text-amber-800':'bg-gray-100 text-gray-500'}">공동 ${t.rank}위</span>`:''}
+        </div>
         <div class="text-xs text-gray-400">${t.members.length}명</div>
       </div>
       <div class="text-right shrink-0">
-        <div class="font-black text-2xl ${isFirst?'gold-text':'text-blue-600'}">${t.total}</div>
+        <div class="font-black text-2xl ${isFirst?'gold-text':t.total<0?'text-red-500':'text-blue-600'}">${t.total}</div>
         <div class="text-xs text-gray-400">점</div>
       </div>
     </div>`;
@@ -847,15 +867,24 @@ function renderAdminLeaderboard(){
   const el=g('a-lb-list'); if(!el)return;
   const ranked=calcRanking();
   el.className='space-y-3 stagger';
-  el.innerHTML=ranked.map((t,i)=>{
-    const isFirst=i===0&&t.total>0;
-    const medal=MEDALS[i]||`${i+1}.`;
+  el.innerHTML=ranked.map((t)=>{
+    const isFirst=t.rank===1&&t.total>0;
+    const rankIndex=t.rank-1;
+    const medalText=MEDALS[rankIndex]||`${t.rank}.`;
     return`<div class="rounded-2xl p-4 flex items-center gap-3 border-2 ${isFirst?'ani-pulse border-amber-400':'border-gray-100 bg-white'}"
       style="${isFirst?'background:linear-gradient(135deg,#fffbeb,#fef3c7)':''}">
-      <div class="text-3xl ${isFirst&&t.total>0?'ani-crown':''}">${medal}</div>
+      <div class="text-3xl flex items-center justify-center shrink-0 ${isFirst&&t.total>0?'ani-crown':''}">
+        ${medalText}
+      </div>
       <div class="text-3xl">${t.emoji}</div>
-      <div class="flex-1"><div class="font-black text-gray-800">${esc(t.name)}</div><div class="text-xs text-gray-400">${t.members.length}명</div></div>
-      <div class="font-black text-2xl ${isFirst?'gold-text':'text-blue-600'}">${t.total}<span class="text-sm font-normal text-gray-400">점</span></div>
+      <div class="flex-1 min-w-0">
+        <div class="font-black text-gray-800">
+          ${esc(t.name)}
+          ${t.isTied?`<span class="ml-1.5 text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-700">공동 ${t.rank}위</span>`:''}
+        </div>
+        <div class="text-xs text-gray-400">${t.members.length}명</div>
+      </div>
+      <div class="font-black text-2xl ${isFirst?'gold-text':t.total<0?'text-red-500':'text-blue-600'}">${t.total}<span class="text-sm font-normal text-gray-400">점</span></div>
     </div>`;
   }).join('')||'<div class="text-center py-8 text-gray-400">팀이 없습니다</div>';
 }
@@ -898,14 +927,27 @@ function renderPGames(){
 
 function openGameDetail(gid){
   const gm=ST.games[gid]; if(!gm)return;
-  const gameScores=Object.entries(ST.teams).map(([tid,team])=>({
+  const rawScores=Object.entries(ST.teams).map(([tid,team])=>({
     name:team.name,emoji:team.emoji||'🏷️',score:(ST.scores[gid]||{})[tid]||0
   })).sort((a,b)=>b.score-a.score);
-  const scHtml=gameScores.length?gameScores.map((s,i)=>`
-    <div class="flex items-center gap-2 p-2 rounded-xl ${i===0?'bg-amber-50':'bg-gray-50'}">
-      <span class="text-lg">${MEDALS[i]||(i+1)}</span><span class="text-lg">${s.emoji}</span>
-      <span class="flex-1 font-bold text-sm">${esc(s.name)}</span>
-      <span class="font-black text-blue-600">${s.score}점</span>
+
+  const gameScores=rawScores.map((item, idx, arr)=>{
+    if(idx > 0 && item.score === arr[idx - 1].score){
+      item.rank = arr[idx - 1].rank;
+      item.isTied = true;
+      arr[idx - 1].isTied = true;
+    } else {
+      item.rank = idx + 1;
+      item.isTied = false;
+    }
+    return item;
+  });
+
+  const scHtml=gameScores.length?gameScores.map((s)=>`
+    <div class="flex items-center gap-2 p-2 rounded-xl ${s.rank===1&&s.score>0?'bg-amber-50':'bg-gray-50'}">
+      <span class="text-lg">${MEDALS[s.rank-1]||s.rank}</span><span class="text-lg">${s.emoji}</span>
+      <span class="flex-1 font-bold text-sm">${esc(s.name)} ${s.isTied?`<span class="text-[10px] text-gray-400 font-normal">(공동 ${s.rank}위)</span>`:''}</span>
+      <span class="font-black ${s.score>0?'text-blue-600':s.score<0?'text-red-500':'text-gray-400'}">${s.score}점</span>
     </div>`).join(''):'<p class="text-gray-400 text-sm text-center py-2">점수 미입력</p>';
   modal(`
     <div class="text-center mb-5"><div class="text-6xl mb-2">${gm.emoji||'🎮'}</div><h2 class="text-2xl font-black text-gray-800">${esc(gm.name)}</h2></div>
@@ -923,15 +965,17 @@ function renderMyTeam(){
   if(!team){el.innerHTML='<div class="text-center py-8 text-gray-400">팀에 소속되어 있지 않습니다</div>';return;}
   const members=team.members?Object.values(team.members):[];
   const ranked=calcRanking();
-  const myRank=ranked.findIndex(t=>t.tid===ST.me.teamId)+1;
-  const myScore=ranked.find(t=>t.tid===ST.me.teamId)?.total||0;
+  const myTeamInfo=ranked.find(t=>t.tid===ST.me.teamId);
+  const myRank=myTeamInfo?.rank;
+  const isMyTied=myTeamInfo?.isTied;
+  const myScore=myTeamInfo?.total||0;
   const games=sortedGames();
   el.innerHTML=`
     <div class="text-center mb-5">
       <div class="text-7xl mb-2">${team.emoji||'🏷️'}</div>
       <h2 class="text-2xl font-black text-gray-800">${esc(team.name)}</h2>
-      <p class="text-blue-600 font-black text-3xl mt-1">${myScore}점</p>
-      <p class="text-gray-400 text-sm">${myRank?`현재 ${myRank}위`:''}</p>
+      <p class="font-black text-3xl mt-1 ${myScore<0?'text-red-500':'text-blue-600'}">${myScore}점</p>
+      <p class="text-gray-400 text-sm">${myRank?`현재 ${isMyTied?'공동 ':''}${myRank}위`:''}</p>
     </div>
     <div class="bg-white rounded-2xl p-4 shadow-sm mb-3">
       <h3 class="font-bold text-gray-800 mb-3">👥 팀원 (${members.length}명)</h3>
