@@ -869,7 +869,12 @@ function renderScoreTable(){
   html+='<th class="text-center px-2 py-2 font-bold text-blue-600">합계</th></tr></thead><tbody>';
   ranked.forEach((t,ri)=>{
     html+=`<tr class="border-b border-gray-50 ${ri===0?'bg-amber-50':''}"><td class="py-2 pr-3 font-bold text-gray-800 whitespace-nowrap">${t.emoji} ${esc(t.name)}</td>`;
-    games.forEach(([gid])=>{ const sc=(ST.scores[gid]||{})[t.tid]||0; html+=`<td class="text-center px-2 py-2 font-semibold ${sc>0?'text-blue-600':''}">${sc||'-'}</td>`; });
+    games.forEach(([gid])=>{
+      const sc = (ST.scores[gid]||{})[t.tid];
+      const val = sc !== undefined ? sc : '-';
+      const colorCls = sc > 0 ? 'text-blue-600 font-bold' : sc < 0 ? 'text-red-500 font-bold' : 'text-gray-400';
+      html += `<td class="text-center px-2 py-2 ${colorCls}">${val}</td>`;
+    });
     html+=`<td class="text-center px-2 py-2 font-black text-blue-600">${t.total}</td></tr>`;
   });
   el.innerHTML=html+'</tbody></table>';
@@ -940,7 +945,7 @@ function renderMyTeam(){
         const sc=(ST.scores[gid]||{})[ST.me.teamId]||0;
         return`<div class="flex items-center gap-2 py-2 border-b border-gray-50 last:border-0">
           <span>${gm.emoji||'🎮'}</span><span class="flex-1 text-sm text-gray-700">${esc(gm.name)}</span>
-          <span class="font-black ${sc>0?'text-blue-600':'text-gray-300'}">${sc||'-'}점</span>
+          <span class="font-black ${sc>0?'text-blue-600':sc<0?'text-red-500':'text-gray-400'}">${sc}점</span>
         </div>`;
       }).join('')||'<p class="text-gray-400 text-sm">게임 없음</p>'}
     </div>`;
@@ -1131,7 +1136,7 @@ function renderScoreInputArea(){
             <div class="flex items-center gap-1.5">
               <button onclick="adjScore('${ST.curScoreGame}','${tid}',-10)" class="sc-btn w-9 h-9 bg-red-100 text-red-600 rounded-xl font-black text-xs">-10</button>
               <button onclick="adjScore('${ST.curScoreGame}','${tid}',-1)"  class="sc-btn w-9 h-9 bg-orange-100 text-orange-500 rounded-xl font-black text-xs">-1</button>
-              <input type="number" min="0" value="${gsc[tid]||0}" id="sc-${ST.curScoreGame}-${tid}"
+              <input type="number" value="${gsc[tid]!==undefined?gsc[tid]:0}" id="sc-${ST.curScoreGame}-${tid}"
                      onchange="setScore('${ST.curScoreGame}','${tid}',this.value)"
                      class="w-16 text-center border-2 border-gray-200 rounded-xl font-black text-lg outline-none focus:border-blue-400 transition-colors py-1">
               <button onclick="adjScore('${ST.curScoreGame}','${tid}',1)"  class="sc-btn w-9 h-9 bg-green-100 text-green-600 rounded-xl font-black text-xs">+1</button>
@@ -1143,10 +1148,15 @@ function renderScoreInputArea(){
     </div>`;
 }
 function pickScoreGame(gid){ ST.curScoreGame=gid; renderScoreInputArea(); }
-async function setScore(gid,tid,val){ const sc=Math.max(0,parseInt(val)||0); await db.ref(`scores/${gid}/${tid}`).set(sc); }
+async function setScore(gid,tid,val){
+  const sc = isNaN(parseInt(val)) ? 0 : parseInt(val);
+  await db.ref(`scores/${gid}/${tid}`).set(sc);
+}
 async function adjScore(gid,tid,delta){
-  const cur=((ST.scores[gid]||{})[tid])||0; const nv=Math.max(0,cur+delta);
-  const inp=g(`sc-${gid}-${tid}`); if(inp)inp.value=nv;
+  const cur = parseInt(((ST.scores[gid]||{})[tid])) || 0;
+  const nv = cur + delta;
+  const inp = g(`sc-${gid}-${tid}`);
+  if(inp) inp.value = nv;
   await db.ref(`scores/${gid}/${tid}`).set(nv);
 }
 async function resetScores(){
