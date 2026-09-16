@@ -434,6 +434,21 @@ async function bootFirebase(cfg){
     const t=setTimeout(()=>rej(new Error('연결 시간 초과')),10000);
     db.ref('.info/connected').once('value',()=>{clearTimeout(t);res();});
   });
+
+  // 초기 필수 데이터 1회 대기 (팀 정보 등이 먼저 채워진 후 뷰 전환)
+  const [cfgSnap, teamsSnap, gamesSnap, scoresSnap] = await Promise.all([
+    db.ref('cfg').once('value'),
+    db.ref('teams').once('value'),
+    db.ref('games').once('value'),
+    db.ref('scores').once('value')
+  ]);
+
+  if(cfgSnap.val()) ST.cfg = {...ST.cfg, ...cfgSnap.val()};
+  ST.teams = teamsSnap.val() || {};
+  ST.games = gamesSnap.val() || {};
+  ST.scores = scoresSnap.val() || {};
+
+  // 실시간 동기화 리스너 등록
   db.ref('cfg').on('value',snap=>{
     if(snap.val()){ST.cfg={...ST.cfg,...snap.val()};syncCfgUI();}
     else db.ref('cfg').set(ST.cfg);
@@ -442,24 +457,43 @@ async function bootFirebase(cfg){
   db.ref('games').on('value',       snap=>{ST.games=snap.val()||{};renderAll();});
   db.ref('scores').on('value',      snap=>{ST.scores=snap.val()||{};renderAll();});
   db.ref('participants').on('value',snap=>{ST.participants=snap.val()||{};});
+
   const autoUrl=location.href.split('?')[0];
   if(!ST.cfg.url){ST.cfg.url=autoUrl;db.ref('cfg/url').set(autoUrl);}
+
   const params=new URLSearchParams(location.search);
   if(params.get('mode')==='admin'){
     showView('v-admin-login');
-  } else {
-    // 이미 참가한 기록이 있으면 바로 참가자 화면으로
-    const saved=localStorage.getItem('dp_me');
-    if(saved){
-      try{
-        const {name,teamId}=JSON.parse(saved);
-        ST.me.name=name; ST.me.teamId=teamId;
+    return;
+  }
+
+  // 1. 관리자로 로그인했던 기록이 있는지 확인
+  const savedAdmin = localStorage.getItem('dp_admin');
+  if(savedAdmin === 'true'){
+    ST.adminAuthed = true;
+    showView('v-admin');
+    aTab('teams');
+    return;
+  }
+
+  // 2. 이미 참가한 일반 사용자 기록이 있으면 바로 참가자 화면으로 이동 (시작 화면 건너뜀)
+  const saved = localStorage.getItem('dp_me');
+  if(saved){
+    try{
+      const parsed = JSON.parse(saved);
+      if(parsed && parsed.name){
+        ST.me.name = parsed.name;
+        ST.me.teamId = parsed.teamId || '';
         enterParticipantView(false);
-      }catch(e){ localStorage.removeItem('dp_me'); showView('v-welcome'); }
-    } else {
-      showView('v-welcome');
+        return;
+      }
+    }catch(e){
+      localStorage.removeItem('dp_me');
     }
   }
+
+  // 3. 첫 방문자만 시작 환영 화면 표시
+  showView('v-welcome');
 }
 
 function renderAll(){
@@ -641,6 +675,7 @@ async function joinEvent(){
 
   if(ADMIN_NAMES.includes(cleanName) || (name.startsWith(ADMIN_KEYWORD) && name.slice(ADMIN_KEYWORD.length) === (ST.cfg.adminPin || '1234'))){
     ST.adminAuthed = true;
+    localStorage.setItem('dp_admin', 'true');
     showView('v-admin');
     aTab('teams');
     toast(`관리자 환영합니다 (${name})`, 'ok');
@@ -718,10 +753,11 @@ function enterParticipantView(isNew=false){
 function leaveEvent(){
   if(!confirm('참가 정보를 초기화하고 처음 화면으로 돌아갑니다.\n계속하시겠습니까?'))return;
   localStorage.removeItem('dp_me');
+  localStorage.removeItem('dp_admin');
   ST.me = { name:'', teamId:'' };
   const vw = document.getElementById('v-welcome');
   vw.style.transition = '';
-  vw.style.background = 'linear-gradient(160deg,#fffde7 0%,#fef9c3 40%,#fef08a 100%)';
+  vw.style.background = 'linear-gradient(145deg,#ff6b35 0%,#f7931e 50%,#ffbb00 100%)';
   g('msg-display').style.display = 'flex';
   showView('v-welcome');
 }
@@ -915,11 +951,17 @@ function goAdminLogin(){ g('pin-inp').value=''; g('pin-err').classList.add('hidd
 function checkPin(){
   const input=g('pin-inp').value;
   if(input===(ST.cfg.adminPin||'1234')){
-    ST.adminAuthed=true; g('pin-err').classList.add('hidden');
+    ST.adminAuthed=true;
+    localStorage.setItem('dp_admin', 'true');
+    g('pin-err').classList.add('hidden');
     showView('v-admin'); aTab('teams');
   }else{ g('pin-err').classList.remove('hidden'); g('pin-inp').value=''; g('pin-inp').focus(); }
 }
-function adminLogout(){ ST.adminAuthed=false; showView('v-welcome'); }
+function adminLogout(){
+  ST.adminAuthed=false;
+  localStorage.removeItem('dp_admin');
+  showView('v-welcome');
+}
 
 // ─── ADMIN TABS ───
 function aTab(tab){
