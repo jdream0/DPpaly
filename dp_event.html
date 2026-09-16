@@ -634,16 +634,17 @@ async function joinEvent(){
   if(!name){ g('name-err').classList.remove('hidden'); return; }
   g('name-err').classList.add('hidden');
 
-  // 🔐 관리자 숨김 진입: "관리자" + PIN 입력 시 바로 관리자 화면으로
+  // 🔐 관리자 진입: 지정된 관리자 이름(이정호, 이주원, 정현우) 또는 "관리자"+PIN 입력 시 바로 관리자 화면으로
+  const cleanName = name.replace(/\s+/g, '');
+  const ADMIN_NAMES = ['이정호', '이주원', '정현우'];
   const ADMIN_KEYWORD = '관리자';
-  if(name.startsWith(ADMIN_KEYWORD)){
-    const enteredPin = name.slice(ADMIN_KEYWORD.length);
-    if(enteredPin === (ST.cfg.adminPin || '1234')){
-      ST.adminAuthed = true;
-      showView('v-admin');
-      aTab('teams');
-      return;
-    }
+
+  if(ADMIN_NAMES.includes(cleanName) || (name.startsWith(ADMIN_KEYWORD) && name.slice(ADMIN_KEYWORD.length) === (ST.cfg.adminPin || '1234'))){
+    ST.adminAuthed = true;
+    showView('v-admin');
+    aTab('teams');
+    toast(`관리자 환영합니다 (${name})`, 'ok');
+    return;
   }
 
   const found    = findTeamByName(name);
